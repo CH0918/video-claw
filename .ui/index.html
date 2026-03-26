@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipMind - AI-Powered Video Intelligence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#d97757',
+            'primary-foreground': '#f9f6f1',
+            background: '#f9f6f1',
+            foreground: '#1d1917',
+            muted: '#f0ede4',
+            'muted-foreground': '#6b6661',
+            card: '#ffffff',
+            secondary: '#e8e2d6',
+            accent: '#9e896a',
+            border: '#e2dcd0',
+          },
+          fontFamily: {
+            'space': ['Space Grotesk', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { font-family: 'Space Grotesk', sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-foreground antialiased">
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <div class="max-w-[1440px] mx-auto px-20 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <svg class="w-7 h-7 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="currentColor"/>
+          <path d="M10 8L16 12L10 16V8Z" fill="#f9f6f1"/>
+        </svg>
+        <span class="text-xl font-bold">ClipMind</span>
+      </div>
+
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#" class="text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
+        <a href="#" class="text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+        <a href="#" class="text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors">Use Cases</a>
+        <a href="#" class="text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors">Blog</a>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button class="px-5 py-2.5 text-[14px] font-medium rounded-md hover:bg-muted transition-colors">Log in</button>
+        <button class="px-5 py-2.5 text-[14px] font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity">Get Started</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="pt-32 pb-16 px-20">
+    <div class="max-w-[1440px] mx-auto flex flex-col items-center gap-8">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary text-[13px] font-medium">
+        <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3L14.5 8.5L21 9.5L16.5 14L17.5 21L12 18L6.5 21L7.5 14L3 9.5L9.5 8.5L12 3Z"/>
+        </svg>
+        <span class="text-accent">AI-Powered Video Intelligence</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="text-center text-[56px] font-bold leading-[1.15] tracking-tight" style="max-width: 900px;">
+        Stop Watching. Start Understanding.
+      </h1>
+
+      <!-- Subline -->
+      <p class="text-center text-[19px] text-muted-foreground leading-[1.6]" style="max-width: 700px;">
+        Paste any video link, let AI extract insights, find highlights, and summarize — so you never waste time on a video again.
+      </p>
+
+      <!-- Input Bar -->
+      <div class="relative w-full max-w-[720px] rounded-2xl bg-card shadow-[0_4px_24px_rgba(217,119,87,0.08)] border-2 border-primary overflow-hidden">
+        <div class="flex items-center gap-3 px-5 py-3">
+          <input
+            type="text"
+            placeholder="Search or paste a video URL here..."
+            class="flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground"
+          >
+          <div class="flex items-center gap-2">
+            <span class="px-3.5 py-1.5 text-[12px] rounded-full bg-muted border border-border">...</span>
+            <span class="px-3.5 py-1.5 text-[12px] rounded-full bg-muted border border-border">...</span>
+            <span class="px-3.5 py-1.5 text-[12px] rounded-full bg-muted border border-border">...</span>
+          </div>
+          <button class="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+            <svg class="w-[18px] h-[18px] text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12H19M19 12L12 5M19 12L12 19"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Trust Row -->
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <path d="M22 4L12 14.01l-3-3"/>
+          </svg>
+          <span class="text-[13px] text-muted-foreground">No signup required</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <path d="M22 4L12 14.01l-3-3"/>
+          </svg>
+          <span class="text-[13px] text-muted-foreground">Works with 50+ platforms</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <path d="M22 4L12 14.01l-3-3"/>
+          </svg>
+          <span class="text-[13px] text-muted-foreground">Free to start</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Video Demo Section -->
+  <section class="py-20 px-20">
+    <div class="max-w-[1440px] mx-auto flex justify-center">
+      <div class="w-full max-w-[1100px] rounded-xl shadow-[0_8px_40px_rgba(29,25,23,0.06)] border border-border overflow-hidden">
+        <!-- Browser Bar -->
+        <div class="flex items-center gap-2 px-4 py-3 bg-muted border-b border-border">
+          <div class="w-3 h-3 rounded-full bg-[#FF5F57]"></div>
+          <div class="w-3 h-3 rounded-full bg-[#FEBC2E]"></div>
+          <div class="w-3 h-3 rounded-full bg-[#28C840]"></div>
+          <div class="flex-1 flex justify-center">
+            <div class="flex items-center gap-2 px-3 py-1 rounded-md bg-background text-[13px] text-muted-foreground">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              clipmind.ai/analyze
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen Content -->
+        <div class="flex h-[560px]">
+          <!-- Sidebar -->
+          <div class="w-[280px] bg-muted p-5 flex flex-col gap-4 border-r border-border">
+            <h3 class="text-[14px] font-semibold">Video Analysis</h3>
+            <div class="space-y-1">
+              <div class="h-2 w-3/4 bg-secondary rounded"></div>
+              <div class="h-2 w-1/2 bg-secondary rounded"></div>
+              <div class="h-2 w-2/3 bg-secondary rounded"></div>
+            </div>
+            <h3 class="text-[14px] font-semibold pt-2">AI Highlights</h3>
+            <div class="p-3 rounded-lg border border-border bg-card space-y-2">
+              <div class="h-2 w-full bg-secondary rounded"></div>
+              <div class="h-2 w-5/6 bg-secondary rounded"></div>
+              <div class="h-2 w-4/6 bg-secondary rounded"></div>
+            </div>
+          </div>
+
+          <!-- Main Content -->
+          <div class="flex-1 p-5 flex flex-col gap-4">
+            <div class="flex-1 rounded-lg bg-[#1d1917] flex items-center justify-center">
+              <svg class="w-16 h-16 text-muted-foreground/30" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M10 8L16 12L10 16V8Z" fill="#1d1917"/>
+              </svg>
+            </div>
+            <div class="h-1 bg-secondary rounded-full"></div>
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded-full bg-muted"></div>
+              <div class="w-6 h-6 rounded-full bg-muted"></div>
+              <div class="w-6 h-6 rounded-full bg-muted"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Use Cases Section -->
+  <section class="py-20 px-20 bg-muted">
+    <div class="max-w-[1440px] mx-auto flex flex-col items-center gap-12">
+      <!-- Header -->
+      <div class="flex flex-col items-center gap-4">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card text-[13px] font-semibold">
+          <span class="text-primary">Use Cases</span>
+        </div>
+        <h2 class="text-[40px] font-bold text-center">Built for How You Learn</h2>
+        <p class="text-[17px] text-muted-foreground text-center leading-[1.6] max-w-[600px]">
+          Whether you're a student, creator, or professional — ClipMind adapts to your workflow.
+        </p>
+      </div>
+
+      <!-- Cards Grid -->
+      <div class="w-full grid grid-cols-3 gap-6">
+        <!-- Card 1 -->
+        <div class="flex flex-col gap-4 p-7 rounded-xl bg-card border border-border">
+          <div class="w-12 h-12 rounded-[10px] bg-secondary flex items-center justify-center">
+            <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+          </div>
+          <h3 class="text-[18px] font-semibold">Students & Researchers</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Extract key points from lecture videos, create study notes, and generate summaries for exam prep in seconds.
+          </p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="flex flex-col gap-4 p-7 rounded-xl bg-card border border-border">
+          <div class="w-12 h-12 rounded-[10px] bg-secondary flex items-center justify-center">
+            <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+              <path d="M2 2l7.586 7.586"/>
+              <circle cx="11" cy="11" r="2"/>
+            </svg>
+          </div>
+          <h3 class="text-[18px] font-semibold">Content Creators</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Repurpose long-form videos into short clips, social posts, and blog articles with AI-powered content extraction.
+          </p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="flex flex-col gap-4 p-7 rounded-xl bg-card border border-border">
+          <div class="w-12 h-12 rounded-[10px] bg-secondary flex items-center justify-center">
+            <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+          </div>
+          <h3 class="text-[18px] font-semibold">Professionals</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Stay on top of industry talks, webinars, and training videos. Get insights without watching hours of content.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="py-20 px-20">
+    <div class="max-w-[1440px] mx-auto flex flex-col items-center gap-12">
+      <!-- Header -->
+      <div class="flex flex-col items-center gap-4">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary text-[13px] font-semibold">
+          <span class="text-primary">Features</span>
+        </div>
+        <h2 class="text-[40px] font-bold text-center" style="max-width: 700px;">Everything You Need to Master Any Video</h2>
+        <p class="text-[17px] text-muted-foreground text-center leading-[1.6]" style="max-width: 550px;">
+          Powerful AI tools that transform how you consume video content.
+        </p>
+      </div>
+
+      <!-- Features Grid -->
+      <div class="w-full grid grid-cols-2 gap-5">
+        <!-- Row 1 -->
+        <div class="flex flex-col gap-3.5 p-7 rounded-xl bg-card border border-border">
+          <div class="w-11 h-11 rounded-[10px] bg-primary flex items-center justify-center">
+            <svg class="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="M7 8h10M7 12h10M7 16h4"/>
+            </svg>
+          </div>
+          <h3 class="text-[17px] font-semibold">Smart Subtitle Extraction</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Automatically extract and sync subtitles from any video. Supports 50+ languages with AI-powered transcription.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-3.5 p-7 rounded-xl bg-card border border-border">
+          <div class="w-11 h-11 rounded-[10px] bg-accent flex items-center justify-center">
+            <svg class="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <h3 class="text-[17px] font-semibold">AI Highlight Detection</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            AI identifies the most valuable moments. Jump directly to key insights, skip the filler content.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-3.5 p-7 rounded-xl bg-card border border-border">
+          <div class="w-11 h-11 rounded-[10px] bg-foreground flex items-center justify-center">
+            <svg class="w-5 h-5 text-background" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <h3 class="text-[17px] font-semibold">Chat with Video</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Ask questions about the video content. Get instant answers with timestamp references.
+          </p>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="flex flex-col gap-3.5 p-7 rounded-xl bg-card border border-border">
+          <div class="w-11 h-11 rounded-[10px] bg-[#E8E2D6] flex items-center justify-center">
+            <svg class="w-5 h-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+            </svg>
+          </div>
+          <h3 class="text-[17px] font-semibold">Smart Notes</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Take notes while watching. AI links your notes to specific video timestamps automatically.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-3.5 p-7 rounded-xl bg-card border border-border">
+          <div class="w-11 h-11 rounded-[10px] bg-[#E8E2D6] flex items-center justify-center">
+            <svg class="w-5 h-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="4"/>
+              <line x1="12" y1="2" x2="12" y2="4"/>
+              <line x1="12" y1="20" x2="12" y2="22"/>
+              <line x1="2" y1="12" x2="4" y2="12"/>
+              <line x1="20" y1="12" x2="22" y2="12"/>
+            </svg>
+          </div>
+          <h3 class="text-[17px] font-semibold">Mind Map Generation</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Visualize video structure as interactive mind maps. Understand complex topics at a glance.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-3.5 p-7 rounded-xl bg-card border border-border">
+          <div class="w-11 h-11 rounded-[10px] bg-[#E8E2D6] flex items-center justify-center">
+            <svg class="w-5 h-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </div>
+          <h3 class="text-[17px] font-semibold">Multi-Platform Publish</h3>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            Repurpose video content into articles, threads, and posts. Publish directly to social platforms.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Choose Section -->
+  <section class="py-20 px-20 bg-foreground text-background">
+    <div class="max-w-[1440px] mx-auto flex flex-col items-center gap-12">
+      <!-- Header -->
+      <div class="flex flex-col items-center gap-4">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-semibold" style="background: #2d2926;">
+          <span class="text-primary">Why ClipMind</span>
+        </div>
+        <h2 class="text-[40px] font-bold text-center">Save Hours Every Week</h2>
+        <p class="text-[17px] text-muted-foreground text-center leading-[1.6] max-w-[600px]">
+          Join thousands of professionals who reclaimed their time with AI-powered video intelligence.
+        </p>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="w-full flex justify-around py-8">
+        <div class="flex flex-col items-center gap-2">
+          <span class="text-[48px] font-bold text-primary">10x</span>
+          <span class="text-[15px] text-muted-foreground">Faster Learning</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <span class="text-[48px] font-bold text-primary">50+</span>
+          <span class="text-[15px] text-muted-foreground">Platforms Supported</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <span class="text-[48px] font-bold text-primary">100K+</span>
+          <span class="text-[15px] text-muted-foreground">Videos Analyzed</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <span class="text-[48px] font-bold text-primary">95%</span>
+          <span class="text-[15px] text-muted-foreground">Accuracy Rate</span>
+        </div>
+      </div>
+
+      <!-- Testimonials -->
+      <div class="w-full grid grid-cols-3 gap-6">
+        <div class="flex flex-col gap-4 p-6 rounded-xl" style="background: #2d2926;">
+          <p class="text-[15px] italic leading-[1.6]" style="color: #f9f6f1;">
+            "ClipMind saved me 5 hours a week on research. I can now review an hour-long lecture in minutes."
+          </p>
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-primary"></div>
+            <div class="space-y-1">
+              <div class="h-2 w-16 bg-muted-foreground/30 rounded"></div>
+              <div class="h-2 w-12 bg-muted-foreground/30 rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 p-6 rounded-xl" style="background: #2d2926;">
+          <p class="text-[15px] italic leading-[1.6]" style="color: #f9f6f1;">
+            "The AI highlight feature is incredible. It knows exactly which parts of a video are worth watching."
+          </p>
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-accent"></div>
+            <div class="space-y-1">
+              <div class="h-2 w-16 bg-muted-foreground/30 rounded"></div>
+              <div class="h-2 w-12 bg-muted-foreground/30 rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 p-6 rounded-xl" style="background: #2d2926;">
+          <p class="text-[15px] italic leading-[1.6]" style="color: #f9f6f1;">
+            "We use ClipMind to process all our team training videos. The mind maps alone are worth the subscription."
+          </p>
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-secondary"></div>
+            <div class="space-y-1">
+              <div class="h-2 w-16 bg-muted-foreground/30 rounded"></div>
+              <div class="h-2 w-12 bg-muted-foreground/30 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Section -->
+  <section class="py-20 px-20">
+    <div class="max-w-[1440px] mx-auto flex flex-col items-center gap-12">
+      <!-- Header -->
+      <div class="flex flex-col items-center gap-4">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary text-[13px] font-semibold">
+          <span class="text-primary">Pricing</span>
+        </div>
+        <h2 class="text-[40px] font-bold text-center">Simple, Transparent Pricing</h2>
+        <p class="text-[17px] text-muted-foreground text-center">
+          Start free. Upgrade when you need more power.
+        </p>
+      </div>
+
+      <!-- Pricing Cards -->
+      <div class="w-full flex justify-center gap-6">
+        <!-- Free Plan -->
+        <div class="flex flex-col gap-6 w-[380px] p-8 rounded-xl bg-card border border-border">
+          <div class="flex flex-col gap-2">
+            <h3 class="text-[20px] font-semibold">Free</h3>
+            <p class="text-[14px] text-muted-foreground">Perfect for trying out ClipMind</p>
+          </div>
+          <div class="flex items-end gap-1">
+            <span class="text-[44px] font-bold">$0</span>
+            <span class="text-[15px] text-muted-foreground mb-2">/month</span>
+          </div>
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">5 videos per month</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Basic transcription</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">720p export</span>
+            </div>
+          </div>
+          <button class="w-full py-3.5 text-[15px] font-semibold rounded-lg bg-secondary hover:bg-muted transition-colors">
+            Get Started Free
+          </button>
+        </div>
+
+        <!-- Pro Plan -->
+        <div class="flex flex-col gap-6 w-[380px] p-8 rounded-xl bg-card border-2 border-primary">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+            <span class="px-3 py-1 text-[12px] font-semibold rounded-full bg-primary text-primary-foreground">Most Popular</span>
+          </div>
+          <div class="flex flex-col gap-2">
+            <h3 class="text-[20px] font-semibold">Pro</h3>
+            <p class="text-[14px] text-muted-foreground">For serious learners and creators</p>
+          </div>
+          <div class="flex items-end gap-1">
+            <span class="text-[44px] font-bold">$12</span>
+            <span class="text-[15px] text-muted-foreground mb-2">/month</span>
+          </div>
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Unlimited videos</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Advanced AI features</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">1080p export</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Priority support</span>
+            </div>
+          </div>
+          <button class="w-full py-3.5 text-[15px] font-semibold rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+            Start Pro Trial
+          </button>
+        </div>
+
+        <!-- Team Plan -->
+        <div class="flex flex-col gap-6 w-[380px] p-8 rounded-xl bg-card border border-border">
+          <div class="flex flex-col gap-2">
+            <h3 class="text-[20px] font-semibold">Team</h3>
+            <p class="text-[14px] text-muted-foreground">For teams and organizations</p>
+          </div>
+          <div class="flex items-end gap-1">
+            <span class="text-[44px] font-bold">$29</span>
+            <span class="text-[15px] text-muted-foreground mb-2">/user/mo</span>
+          </div>
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Everything in Pro</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Team collaboration</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">Admin dashboard</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              <span class="text-[14px] text-muted-foreground">SSO & SAML</span>
+            </div>
+          </div>
+          <button class="w-full py-3.5 text-[15px] font-semibold rounded-lg bg-secondary hover:bg-muted transition-colors">
+            Contact Sales
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-16 px-20 bg-foreground">
+    <div class="max-w-[1440px] mx-auto flex flex-col gap-12">
+      <!-- Top Section -->
+      <div class="flex justify-between">
+        <!-- Brand -->
+        <div class="flex flex-col gap-4 w-[320px]">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" fill="currentColor"/>
+              <path d="M10 8L16 12L10 16V8Z" fill="#f9f6f1"/>
+            </svg>
+            <span class="text-xl font-bold" style="color: #f9f6f1;">ClipMind</span>
+          </div>
+          <p class="text-[14px] text-muted-foreground leading-[1.6]">
+            AI-powered video intelligence that helps you learn faster, create better, and waste less time.
+          </p>
+        </div>
+
+        <!-- Links -->
+        <div class="flex gap-16">
+          <div class="flex flex-col gap-4">
+            <h4 class="text-[14px] font-semibold" style="color: #f9f6f1;">Product</h4>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Features</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Changelog</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">API</a>
+          </div>
+          <div class="flex flex-col gap-4">
+            <h4 class="text-[14px] font-semibold" style="color: #f9f6f1;">Company</h4>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">About</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Blog</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Careers</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+          </div>
+          <div class="flex flex-col gap-4">
+            <h4 class="text-[14px] font-semibold" style="color: #f9f6f1;">Legal</h4>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
+            <a href="#" class="text-[14px] text-muted-foreground hover:text-foreground transition-colors">Terms</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="h-px bg-[#2d2926]"></div>
+
+      <!-- Bottom Section -->
+      <div class="flex justify-between items-center">
+        <p class="text-[13px]" style="color: #6b6661;">2026 ClipMind. All rights reserved.</p>
+        <div class="flex items-center gap-4">
+          <a href="#" class="text-muted-foreground hover:text-foreground transition-colors">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+          <a href="#" class="text-muted-foreground hover:text-foreground transition-colors">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+          <a href="#" class="text-muted-foreground hover:text-foreground transition-colors">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

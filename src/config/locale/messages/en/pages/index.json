@@ -1,423 +1,194 @@
 {
   "page": {
-    "show_sections": [
-      "hero",
-      "logos",
-      "introduce",
-      "benefits",
-      "usage",
-      "features",
-      "stats",
-      "testimonials",
-      "faq",
-      "cta"
-    ],
-    "sections": {
-      "hero": {
-        "id": "hero",
-        "title": "Ship AI Startups in hours, not days",
-        "highlight_text": "in hours",
-        "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups.<br/>Ship Fast with a variety of templates and components.",
-        "announcement": {
-          "badge": "New",
-          "title": "🎉 ShipAny Template Two",
-          "url": "/pricing"
+    "hero": {
+      "badge": "YouTube Transcript Search & AI Chat",
+      "title": "Search Inside YouTube Videos and Learn Faster",
+      "description": "Paste a public YouTube link, search the exact moments you care about, jump to timestamps, and ask AI follow-up questions without losing the original context.",
+      "input_placeholder": "Paste a YouTube link to start in the workspace...",
+      "chips": [
+        "Transcript Search",
+        "Exact Timestamps",
+        "AI Follow-up"
+      ],
+      "primary_button": {
+        "title": "Get Started",
+        "url": "/chat"
+      },
+      "secondary_button": {
+        "title": "Explore Features",
+        "url": "/#features"
+      },
+      "trust_items": [
+        "Search by keyword before you skim",
+        "Trace every answer back to the source",
+        "Built for long-form learning"
+      ]
+    },
+    "demo": {
+      "eyebrow": "Workspace",
+      "title": "A learning workspace built around the original video",
+      "description": "Search the transcript, open the right clip, and continue with AI questions in one place.",
+      "browser_url": "video-claw.cloud/chat",
+      "search_label": "Search prompts",
+      "search_terms": [
+        "product idea",
+        "pricing strategy",
+        "distribution"
+      ],
+      "search_hint": "Video Claw keeps search grounded in the transcript so you can verify the source before trusting the answer.",
+      "hits_label": "Matched moments",
+      "hits": [
+        {
+          "time": "00:31-01:12",
+          "label": "The speaker explains how the first product idea came from repeated customer pain points."
         },
-        "tip": "🎁 Special offer for the first 1000 users",
-        "buttons": [
-          {
-            "title": "Get Started",
-            "icon": "Zap",
-            "url": "/pricing",
-            "target": "_self",
-            "variant": "default"
-          },
-          {
-            "title": "Read Document",
-            "icon": "BookOpenText",
-            "url": "/docs",
-            "target": "_blank",
-            "variant": "outline"
-          }
-        ],
-        "show_avatars": true,
-        "avatars_tip": "999+ users are using ShipAny",
-        "show_award": false,
-        "image": {
-          "src": "/imgs/features/admin.png",
-          "alt": "hero",
-          "width": 1200,
-          "height": 800
+        {
+          "time": "08:44-09:26",
+          "label": "A direct comparison between premium pricing and audience growth for an early-stage product."
         },
-        "image_invert": {
-          "src": "/imgs/features/admin-dark.png",
-          "alt": "hero",
-          "width": 1200,
-          "height": 800
-        },
-        "background_image": {
-          "src": "/imgs/bg/tree.jpg",
-          "alt": "hero"
+        {
+          "time": "18:05-18:49",
+          "label": "A concrete tactic for turning a long interview into a repeatable distribution habit."
         }
-      },
-      "logos": {
-        "id": "logos",
-        "title": "ShipAny is built on the shoulders of giants",
-        "items": [
-          {
-            "title": "Next.js",
-            "image": {
-              "src": "/imgs/logos/nextjs.svg",
-              "alt": "Next.js"
-            }
-          },
-          {
-            "title": "React",
-            "image": {
-              "src": "/imgs/logos/react.svg",
-              "alt": "React"
-            }
-          },
-          {
-            "title": "TailwindCSS",
-            "image": {
-              "src": "/imgs/logos/tailwindcss.svg",
-              "alt": "TailwindCSS"
-            }
-          },
-          {
-            "title": "Shadcn/UI",
-            "image": {
-              "src": "/imgs/logos/shadcn.svg",
-              "alt": "Shadcn/UI"
-            }
-          },
-          {
-            "title": "Vercel",
-            "image": {
-              "src": "/imgs/logos/vercel.svg",
-              "alt": "Vercel"
-            }
-          }
-        ]
-      },
-      "introduce": {
-        "block": "features-list",
-        "id": "introduce",
-        "title": "What is ShipAny",
-        "label": "Introduce",
-        "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups, including templates, components, and documentation.",
-        "image": {
-          "src": "/imgs/features/landing-page.png",
-          "alt": "introduce"
+      ],
+      "chat_label": "AI follow-up",
+      "chat_title": "Ask better questions without leaving the video",
+      "chat_answer": "When you ask a follow-up question, the answer stays tied to the transcript and the matched moments so you can jump back and verify the context.",
+      "player_caption": "Jump back to the exact part of the video"
+    },
+    "use_cases": {
+      "eyebrow": "Use Cases",
+      "title": "Built for how people actually learn from long videos",
+      "description": "Use Video Claw when you need to find a precise idea, review the source, and keep asking better questions.",
+      "items": [
+        {
+          "icon": "graduation-cap",
+          "title": "Students & Researchers",
+          "description": "Find the exact explanation, claim, or example inside a long lecture, interview, or panel discussion."
         },
-        "items": [
-          {
-            "title": "Ready-to-use Templates",
-            "description": "Choose from dozens of production-ready AI SaaS templates to quickly start your project.",
-            "icon": "RiNextjsFill",
-            "image": {
-              "src": "/imgs/features/1.png",
-              "alt": "introduce"
-            }
-          },
-          {
-            "title": "Infrastructure Setup",
-            "description": "Get instant access to scalable infrastructure with best practices built-in.",
-            "icon": "RiDatabase2Line",
-            "image": {
-              "src": "/imgs/features/2.png",
-              "alt": "introduce"
-            }
-          },
-          {
-            "title": "Quick Deployment",
-            "description": "Deploy your AI SaaS application to production in hours, not days.",
-            "icon": "RiCloudyFill",
-            "image": {
-              "src": "/imgs/features/3.png",
-              "alt": "introduce"
-            }
-          },
-          {
-            "title": "AI Integration",
-            "description": "Integrate AI into your project with ease using our built-in AI SDK.",
-            "icon": "RiRobot2Line",
-            "image": {
-              "src": "/imgs/features/4.png",
-              "alt": "introduce"
-            }
-          }
-        ],
-        "className": "bg-muted"
-      },
-      "benefits": {
-        "block": "features-accordion",
-        "id": "benefits",
-        "title": "Why Choose ShipAny",
-        "label": "Benefits",
-        "description": "Get everything you need to launch your AI startup - from ready-to-use templates to technical support.",
-        "items": [
-          {
-            "title": "Complete Framework",
-            "description": "Built on Next.js with authentication, payments, and AI integration - everything works out of the box.",
-            "icon": "RiNextjsFill",
-            "image": {
-              "src": "/imgs/features/user-billing.png",
-              "alt": "benefits"
-            }
-          },
-          {
-            "title": "Rich Templates Library",
-            "description": "Choose from various AI SaaS templates to kickstart your project - chatbots, image generation, and more.",
-            "icon": "RiClapperboardAiLine",
-            "image": {
-              "src": "/imgs/features/admin-settings.png",
-              "alt": "benefits"
-            }
-          },
-          {
-            "title": "Technical Guidance",
-            "description": "Get dedicated support and join our developer community to ensure your successful launch.",
-            "icon": "RiCodeFill",
-            "image": {
-              "src": "/imgs/features/landing-page.png",
-              "alt": "benefits"
-            }
-          }
-        ]
-      },
-      "usage": {
-        "block": "features-step",
-        "id": "usage",
-        "title": "How to Launch with ShipAny",
-        "description": "Get your AI SaaS startup running in three simple steps:",
-        "image": {
-          "src": "/imgs/features/1.png",
-          "alt": "usage"
+        {
+          "icon": "briefcase-business",
+          "title": "Knowledge Workers",
+          "description": "Review webinars, industry talks, and founder interviews without rewatching the full recording line by line."
         },
-        "image_position": "left",
-        "text_align": "center",
-        "items": [
-          {
-            "title": "Get ShipAny",
-            "description": "Buy ShipAny with a one-time payment. Check your email for the code and documentation.",
-            "image": {
-              "src": "/imgs/features/5.png",
-              "alt": "usage"
-            }
-          },
-          {
-            "title": "Start Your Project",
-            "description": "Read the documentation and clone the code of ShipAny. Start building your AI SaaS startup.",
-            "image": {
-              "src": "/imgs/features/6.png",
-              "alt": "usage"
-            }
-          },
-          {
-            "title": "Customize Your Project",
-            "description": "Modify the template with your data and contents. Specific AI functionality needs.",
-            "image": {
-              "src": "/imgs/features/7.png",
-              "alt": "usage"
-            }
-          },
-          {
-            "title": "Deploy to Production",
-            "description": "Deploy your project to production with a few steps and start serving customers immediately.",
-            "image": {
-              "src": "/imgs/features/8.png",
-              "alt": "usage"
-            }
-          }
-        ],
-        "className": "bg-muted"
-      },
-      "features": {
-        "id": "features",
-        "title": "Key Features of ShipAny",
-        "description": "Everything you need to launch your AI SaaS startup quickly and efficiently.",
-        "items": [
-          {
-            "title": "Next.js Boilerplate",
-            "description": "Production-ready Next.js templates with SEO-friendly structure and i18n support.",
-            "icon": "RiNextjsFill"
-          },
-          {
-            "title": "Authentication & Payments",
-            "description": "Integrated Google OAuth, one-tap login, and Stripe payment processing.",
-            "icon": "RiKey2Fill"
-          },
-          {
-            "title": "Data Infrastructure",
-            "description": "Built-in Supabase integration for reliable and scalable data storage.",
-            "icon": "RiDatabase2Line"
-          },
-          {
-            "title": "One-Click Deployment",
-            "description": "Seamless deployment to Vercel or Cloudflare with automated setup.",
-            "icon": "RiCloudy2Fill"
-          },
-          {
-            "title": "Business Analytics",
-            "description": "Integrated Google Analytics and Search Console for tracking growth.",
-            "icon": "RiBarChart2Line"
-          },
-          {
-            "title": "AI-Ready Infrastructure",
-            "description": "Pre-configured AI integration with built-in credits system and API sales.",
-            "icon": "RiRobot2Line"
-          }
-        ]
-      },
-      "stats": {
-        "id": "stats",
-        "title": "People Love ShipAny",
-        "description": "for it's easy to use and fast to ship.",
-        "items": [
-          {
-            "title": "999+",
-            "description": "Customers"
-          },
-          {
-            "title": "200+",
-            "description": "Blocks"
-          },
-          {
-            "title": "50+",
-            "description": "Templates"
-          }
-        ],
-        "className": "bg-muted"
-      },
-      "testimonials": {
-        "id": "testimonials",
-        "title": "What Users Say About ShipAny",
-        "description": "Hear from developers and founders who launched their AI startups with ShipAny.",
-        "items": [
-          {
-            "name": "David Chen",
-            "role": "Founder of AIWallpaper.shop",
-            "quote": "ShipAny saved us months of development time. We launched our AI wallpaper business in just 2 days and got our first paying customer within a week!",
-            "image": {
-              "src": "/imgs/avatars/1.png",
-              "alt": "david"
-            }
-          },
-          {
-            "name": "Rachel Kim",
-            "role": "CTO at HeyBeauty.ai",
-            "quote": "The pre-built AI infrastructure is a game-changer. We didn't have to worry about architecture - just focused on our AI beauty tech and went live fast.",
-            "image": {
-              "src": "/imgs/avatars/2.png",
-              "alt": "rachel"
-            }
-          },
-          {
-            "name": "Marcus Thompson",
-            "role": "Solo Developer",
-            "quote": "As a solo developer, ShipAny gave me everything I needed - auth, payments, AI integration, and beautiful UI. Launched my SaaS in a weekend!",
-            "image": {
-              "src": "/imgs/avatars/3.png",
-              "alt": "marcus"
-            }
-          },
-          {
-            "name": "Sofia Garcia",
-            "role": "CEO of Melodisco",
-            "quote": "The templates are production-ready and highly customizable. We built our AI music platform in hours instead of months. Incredible time-to-market!",
-            "image": {
-              "src": "/imgs/avatars/4.png",
-              "alt": "sofia"
-            }
-          },
-          {
-            "name": "James Wilson",
-            "role": "Tech Lead at GPTs.works",
-            "quote": "ShipAny's infrastructure is rock-solid. We scaled from 0 to 10k users without touching the backend. Best investment for our AI startup.",
-            "image": {
-              "src": "/imgs/avatars/5.png",
-              "alt": "james"
-            }
-          },
-          {
-            "name": "Anna Zhang",
-            "role": "Startup Founder",
-            "quote": "From idea to launch in 3 days! ShipAny's templates and deployment tools made it possible to test our AI business concept incredibly fast.",
-            "image": {
-              "src": "/imgs/avatars/6.png",
-              "alt": "anna"
-            }
-          }
-        ]
-      },
-      "faq": {
-        "id": "faq",
-        "title": "Frequently Asked Questions About ShipAny",
-        "description": "Have another question? Contact us on Discord or by email.",
-        "items": [
-          {
-            "question": "What exactly is ShipAny and how does it work?",
-            "answer": "ShipAny is a comprehensive NextJS boilerplate designed specifically for building AI SaaS startups. It provides ready-to-use templates, infrastructure setup, and deployment tools that help you launch your AI business in hours instead of days."
-          },
-          {
-            "question": "Do I need advanced technical skills to use ShipAny?",
-            "answer": "While basic programming knowledge is helpful, ShipAny is designed to be developer-friendly. Our templates and documentation make it easy to get started, even if you're not an expert in AI or cloud infrastructure."
-          },
-          {
-            "question": "What types of AI SaaS can I build with ShipAny?",
-            "answer": "ShipAny supports a wide range of AI applications, from content generation to data analysis tools. Our templates cover popular use cases like AI chatbots, content generators, image processing apps, and more."
-          },
-          {
-            "question": "How long does it typically take to launch with ShipAny?",
-            "answer": "With ShipAny, you can have a working prototype in hours and a production-ready application in hours. Our one-click deployment and pre-configured infrastructure significantly reduce the traditional months-long development cycle."
-          },
-          {
-            "question": "What's included in the ShipAny infrastructure?",
-            "answer": "ShipAny provides a complete infrastructure stack including authentication, database setup, API integration, payment processing, and scalable cloud deployment. Everything is pre-configured following industry best practices."
-          },
-          {
-            "question": "Can I customize the templates to match my brand?",
-            "answer": "Absolutely! All ShipAny templates are fully customizable. You can modify the design, features, and functionality to match your brand identity and specific business requirements while maintaining the robust underlying infrastructure."
-          }
-        ]
-      },
-      "cta": {
-        "id": "cta",
-        "title": "Ship your first AI SaaS Startup",
-        "description": "Start from here, ship with ShipAny.",
-        "buttons": [
-          {
-            "title": "Get ShipAny",
-            "url": "https://shipany.ai",
-            "target": "_blank",
-            "icon": "Zap"
-          },
-          {
-            "title": "Read Document",
-            "url": "/docs",
-            "target": "_blank",
-            "variant": "outline",
-            "icon": "BookOpenText"
-          }
-        ],
-        "className": "bg-muted"
-      },
-      "subscribe": {
-        "id": "subscribe",
-        "title": "Subscribe to our newsletter",
-        "description": "Get the latest news and updates from ShipAny.",
-        "submit": {
-          "input": {
-            "placeholder": "Enter your email"
-          },
-          "button": {
-            "title": "Subscribe"
-          },
-          "action": "/api/subscribe"
+        {
+          "icon": "mic-2",
+          "title": "Creators & Podcast Learners",
+          "description": "Search through long-form conversations, pull the right moment, and keep asking what matters most."
+        }
+      ]
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything you need to study a video without watching it linearly",
+      "description": "The product is designed around search, traceability, and follow-up learning instead of generic summaries.",
+      "items": [
+        {
+          "icon": "search",
+          "title": "Transcript Search",
+          "description": "Search the transcript by the exact topic, phrase, or question you care about."
         },
-        "className": "bg-muted"
+        {
+          "icon": "scan-search",
+          "title": "Search Inside Video",
+          "description": "Turn a long YouTube video into a searchable interface instead of a passive watch session."
+        },
+        {
+          "icon": "timer-reset",
+          "title": "Jump to Exact Moments",
+          "description": "Open the right timestamp immediately instead of scrubbing through the full recording."
+        },
+        {
+          "icon": "message-square-more",
+          "title": "Chat with Video",
+          "description": "Ask follow-up questions about the current video and keep the conversation tied to the source."
+        },
+        {
+          "icon": "book-open",
+          "title": "Full Transcript for Verification",
+          "description": "Review the surrounding transcript when you need more context around a matched clip."
+        },
+        {
+          "icon": "sparkles",
+          "title": "Timestamp-grounded Answers",
+          "description": "Use AI to understand the video faster without losing the ability to verify where the answer came from."
+        }
+      ]
+    },
+    "principles": {
+      "eyebrow": "Why Video Claw",
+      "title": "Learn from videos without losing the original context",
+      "description": "Video Claw helps you understand long videos faster while keeping every useful idea connected to the source material.",
+      "items": [
+        {
+          "title": "Search before you summarize",
+          "description": "Start from the question you care about, not a generic overview."
+        },
+        {
+          "title": "Go back to the source",
+          "description": "Every useful moment should be easy to verify in the original video."
+        },
+        {
+          "title": "Ask follow-up questions",
+          "description": "Search is only the first step. Understanding comes from continued questioning."
+        },
+        {
+          "title": "Stay with the transcript",
+          "description": "The transcript is the bridge between AI answers and real context."
+        }
+      ],
+      "cards": [
+        {
+          "title": "Find the right clip",
+          "description": "Use keywords to narrow a long video to the moments that actually matter for your learning goal."
+        },
+        {
+          "title": "Understand with context",
+          "description": "Read the surrounding transcript, inspect the matched clip, and build confidence in what the speaker actually meant."
+        },
+        {
+          "title": "Keep learning from the source",
+          "description": "Use AI questions to dig deeper while staying anchored to the original video instead of drifting into generic summaries."
+        }
+      ]
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Questions people ask before they trust a video learning tool",
+      "description": "Video Claw is designed to help you learn faster from long videos without pretending the source no longer matters.",
+      "items": [
+        {
+          "question": "What is Video Claw?",
+          "answer": "Video Claw is a searchable learning interface for long videos. It helps you search transcripts, find exact moments, jump back to the source, and ask AI follow-up questions."
+        },
+        {
+          "question": "Is this just another AI video summarizer?",
+          "answer": "No. The product is designed around keyword search, timestamp navigation, and transcript-grounded Q&A rather than a one-shot generic summary."
+        },
+        {
+          "question": "What kinds of videos work best?",
+          "answer": "The best fit is long-form knowledge content such as interviews, lectures, podcasts, webinars, and idea-dense YouTube videos."
+        },
+        {
+          "question": "Can I verify where an answer came from?",
+          "answer": "Yes. The goal is to keep answers tied to transcript matches and exact moments so you can jump back to the original source."
+        },
+        {
+          "question": "Why does the homepage send me to the workspace?",
+          "answer": "The homepage is intentionally lightweight. Its main job is to get you from a video link to the learning workspace as quickly as possible."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Turn long YouTube videos into a searchable learning session",
+      "description": "Start with a link, find the exact moments you need, and keep learning from the source instead of watching linearly.",
+      "primary_button": {
+        "title": "Open Workspace",
+        "url": "/chat"
+      },
+      "secondary_button": {
+        "title": "See Features",
+        "url": "/#features"
       }
     }
   }

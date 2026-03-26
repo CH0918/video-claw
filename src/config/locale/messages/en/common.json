@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "title": "ShipAny Template Two",
-    "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups. Ship Fast with a variety of templates and components.",
-    "keywords": "shipany, shipany-boilerplate, shipany-template-two-demo"
+    "title": "YouTube Transcript Search & AI Chat for Learning | Video Claw",
+    "description": "Paste a public YouTube link, search the exact moments you care about, jump to timestamps, and ask AI follow-up questions grounded in the video transcript.",
+    "keywords": "Video Claw, YouTube transcript search, search inside YouTube videos, chat with YouTube video, ask questions about YouTube video, learn from YouTube videos"
   },
   "sign": {
     "sign_in_title": "Sign In",

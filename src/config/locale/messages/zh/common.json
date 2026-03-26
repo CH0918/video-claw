@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "title": "ShipAny 模板二",
-    "description": "ShipAny 是用于构建 AI SaaS 创业项目的 NextJS 脚手架。提供丰富模板和组件，助您快速上线产品。",
-    "keywords": "shipany, shipany-boilerplate, shipany-template-two-demo"
+    "title": "YouTube 字幕搜索与 AI 学习问答 | Video Claw",
+    "description": "粘贴 YouTube 链接，按关键词搜索视频字幕，跳到精确时间点，并基于视频内容继续向 AI 追问。",
+    "keywords": "Video Claw, YouTube 字幕搜索, 视频内搜索, YouTube 视频问答, AI 视频学习, 长视频学习"
   },
   "sign": {
     "sign_in_title": "登录",
