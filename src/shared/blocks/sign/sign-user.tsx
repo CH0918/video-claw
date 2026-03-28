@@ -36,10 +36,16 @@ function extractSessionUser(data: any): UserType | null {
 export function SignUser({
   isScrolled,
   signButtonSize = 'sm',
+  anonymousVariant = 'button',
+  avatarClassName,
+  showModal = true,
   userNav,
 }: {
   isScrolled?: boolean;
   signButtonSize?: 'default' | 'sm' | 'lg' | 'icon';
+  anonymousVariant?: 'button' | 'avatar';
+  avatarClassName?: string;
+  showModal?: boolean;
   userNav?: UserNav;
 }) {
   const t = useTranslations('common.sign');
@@ -150,14 +156,19 @@ export function SignUser({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-10 w-10 rounded-full p-0"
+              className={cn(
+                'relative h-10 w-10 rounded-full p-0',
+                avatarClassName
+              )}
             >
-              <Avatar>
+              <Avatar className="h-full w-full">
                 <AvatarImage
                   src={displayUser.image || ''}
                   alt={displayUser.name || ''}
                 />
-                <AvatarFallback>{displayUser.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>
+                  {displayUser.name?.charAt(0) || 'U'}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -246,6 +257,27 @@ export function SignUser({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : anonymousVariant === 'avatar' ? (
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('sign_in_title')}
+            className={cn(
+              'relative h-10 w-10 rounded-full p-0',
+              avatarClassName,
+              isScrolled && 'lg:hidden'
+            )}
+            onClick={() => setIsShowSignModal(true)}
+          >
+            <Avatar className="h-full w-full border border-border/70">
+              <AvatarFallback className="bg-muted text-muted-foreground">
+                <User className="h-4.5 w-4.5" />
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+          {showModal ? <SignModal /> : null}
+        </>
       ) : (
         <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
           <Button
@@ -259,7 +291,7 @@ export function SignUser({
           >
             <span>{t('sign_in_title')}</span>
           </Button>
-          <SignModal />
+          {showModal ? <SignModal /> : null}
         </div>
       )}
     </>

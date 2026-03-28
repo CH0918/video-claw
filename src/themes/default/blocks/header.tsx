@@ -7,13 +7,14 @@ import { Link } from '@/core/i18n/navigation';
 import {
   BrandLogo,
   LocaleSelector,
+  SignUser,
   ThemeToggler,
 } from '@/shared/blocks/common';
+import { SignModal } from '@/shared/blocks/sign/sign-modal';
 import { Header as HeaderType } from '@/shared/types/blocks/landing';
 
 export function Header({ header }: { header: HeaderType }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const primaryButton = header.buttons?.[0];
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -40,15 +41,7 @@ export function Header({ header }: { header: HeaderType }) {
           {header.show_locale !== false ? (
             <LocaleSelector type="button" />
           ) : null}
-          {primaryButton ? (
-            <Link
-              href={primaryButton.url || '/'}
-              target={primaryButton.target || '_self'}
-              className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              {primaryButton.title}
-            </Link>
-          ) : null}
+          <SignUser anonymousVariant="avatar" showModal={false} />
         </div>
 
         <button
@@ -82,20 +75,11 @@ export function Header({ header }: { header: HeaderType }) {
             {header.show_locale !== false ? (
               <LocaleSelector type="button" />
             ) : null}
+            <SignUser anonymousVariant="avatar" showModal={false} />
           </div>
-
-          {primaryButton ? (
-            <Link
-              href={primaryButton.url || '/'}
-              target={primaryButton.target || '_self'}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-              onClick={() => setMobileOpen(false)}
-            >
-              {primaryButton.title}
-            </Link>
-          ) : null}
         </div>
       ) : null}
+      <SignModal />
     </header>
   );
 }

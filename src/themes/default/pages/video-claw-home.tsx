@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Link } from '@/core/i18n/navigation';
+import { VideoClawHomeLinkForm } from '@/themes/default/pages/video-claw-home-link-form';
 
 type ButtonData = {
   title: string;
@@ -199,8 +200,6 @@ export default function VideoClawHome({
     <main className="bg-background text-foreground">
       <section className="px-6 pb-16 pt-32 lg:px-10 lg:pb-20 lg:pt-36">
         <div className="mx-auto flex max-w-[1440px] flex-col items-center gap-8">
-          <SectionEyebrow>{page.hero.badge}</SectionEyebrow>
-
           <h1 className="max-w-[900px] text-center text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-[56px]">
             {page.hero.title}
           </h1>
@@ -209,31 +208,11 @@ export default function VideoClawHome({
             {page.hero.description}
           </p>
 
-          <div className="w-full max-w-[760px] rounded-3xl border-2 border-primary bg-card p-3 shadow-[0_8px_32px_rgba(217,119,87,0.12)]">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="flex flex-1 items-center gap-3 rounded-2xl bg-card px-4 py-3">
-                <Search className="h-5 w-5 text-muted-foreground" />
-                <input
-                  readOnly
-                  value=""
-                  placeholder={page.hero.input_placeholder}
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                {page.hero.chips.map((chip) => (
-                  <span
-                    key={chip}
-                    className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                  >
-                    {chip}
-                  </span>
-                ))}
-              </div>
-
-              <PrimaryButton button={page.hero.primary_button} />
-            </div>
+          <div className="w-full max-w-[760px] rounded-3xl border-2 border-primary/90 bg-transparent p-3 shadow-[0_8px_32px_rgba(217,119,87,0.12)]">
+            <VideoClawHomeLinkForm
+              placeholder={page.hero.input_placeholder}
+              submitLabel={page.hero.primary_button.title}
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
@@ -248,12 +227,6 @@ export default function VideoClawHome({
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <PrimaryButton button={page.hero.primary_button} />
-            {page.hero.secondary_button ? (
-              <SecondaryButton button={page.hero.secondary_button} />
-            ) : null}
-          </div>
         </div>
       </section>
 
