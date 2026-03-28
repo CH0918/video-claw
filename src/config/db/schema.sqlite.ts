@@ -1,5 +1,11 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 // SQLite has no schema concept like Postgres. Keep a `table` alias to minimize diff with pg schema.
 const table = sqliteTable;
@@ -598,5 +604,44 @@ export const chatMessage = table(
   (table) => [
     index('idx_chat_message_chat_id').on(table.chatId, table.status),
     index('idx_chat_message_user_id').on(table.userId, table.status),
+  ]
+);
+
+export const videoAnalysis = table(
+  'video_analysis',
+  {
+    id: text('id').primaryKey(),
+    sourceType: text('source_type').notNull(),
+    sourceId: text('source_id').notNull(),
+    sourceUrl: text('source_url').notNull(),
+    status: text('status').notNull(),
+    title: text('title'),
+    author: text('author'),
+    thumbnailUrl: text('thumbnail_url'),
+    description: text('description'),
+    durationSeconds: integer('duration_seconds'),
+    language: text('language'),
+    transcript: text('transcript'),
+    topics: text('topics'),
+    summary: text('summary'),
+    provider: text('provider').notNull().default(''),
+    providerModel: text('provider_model').notNull().default(''),
+    providerTaskId: text('provider_task_id'),
+    providerMeta: text('provider_meta'),
+    errorMessage: text('error_message'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .default(sqliteNowMs)
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .default(sqliteNowMs)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('uidx_video_analysis_source').on(
+      table.sourceType,
+      table.sourceId
+    ),
+    index('idx_video_analysis_status').on(table.status),
   ]
 );

@@ -12,11 +12,14 @@ export const generateMetadata = getMetadata({
 
 export default async function VideoChatRoute({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<{ url?: string }>;
 }) {
   const { locale } = await params;
+  const resolvedSearchParams = await searchParams;
   setRequestLocale(locale);
 
-  return <VideoChatPage locale={locale} />;
+  return <VideoChatPage locale={locale} initialUrl={resolvedSearchParams?.url} />;
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Space_Grotesk } from 'next/font/google';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   ArrowUp,
@@ -14,7 +15,6 @@ import {
   Copy,
   Download,
   Eraser,
-  Fullscreen,
   GitBranch,
   Globe,
   Languages,
@@ -25,9 +25,7 @@ import {
   Play,
   Plus,
   Search,
-  Settings2,
   Share2,
-  Volume2,
   X,
   Zap,
   type LucideIcon,
@@ -44,7 +42,16 @@ import {
   TabsTrigger,
 } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { exportTranscript } from '@/shared/lib/video-analysis/transcript';
+import { formatTimestamp } from '@/shared/lib/video-analysis/timestamp';
+import { buildYouTubeEmbedUrl } from '@/shared/lib/video-analysis/youtube';
 import { cn } from '@/shared/lib/utils';
+import {
+  TopicRange,
+  TranscriptExportFormat,
+  TranscriptSegment,
+  VideoAnalysisPayload,
+} from '@/shared/types/video-analysis';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -53,317 +60,73 @@ const spaceGrotesk = Space_Grotesk({
 
 const copy = {
   en: {
-    searchPlaceholder: 'Paste a video link to start analyzing...',
+    searchPlaceholder: 'Paste a YouTube link to start analyzing...',
     credits: '128',
-    duration: '8.27 min',
-    overview: 'Overview',
-    highlight: 'Highlight',
-    subtitles: 'Subtitles',
     chat: 'Chat',
     summary: 'Summary',
     captions: 'Captions',
     mindMap: 'Mind Map',
     notes: 'Notes',
-    title: 'How to Build a Startup in 2025 - Complete Guide',
-    channel: 'TechVision · 245K subscribers',
-    subscribe: 'Subscribe',
-    like: '1.2K',
-    share: 'Share',
-    save: 'Save',
-    download: 'Download',
     copySubtitles: 'Copy subtitles',
     downloadSubtitles: 'Download subtitles',
-    views: '1.2M views',
-    published: 'Published Mar 15, 2025',
-    description:
-      'A complete guide on how to build a startup in 2025. Covers the entire journey from initial idea validation, product development, fundraising strategies, to team building. Perfect for aspiring founders and anyone interested in entrepreneurship.',
-    tags: ['#Startup', '#2025Guide', '#Entrepreneurship'],
-    summaryPoints: [
-      'Idea validation should happen before you write code or raise money.',
-      'Your MVP only needs one tight value loop that real users will pay attention to.',
-      'Fundraising works better when traction, narrative, and market timing are aligned.',
-      'The best early hires close capability gaps instead of just increasing headcount.',
-    ],
-    subtitleItems: [
-      {
-        timestamp: '00:03',
-        text: "Uh you've recently traveled to China. Uh so it's interesting to ask you uh China's been incredibly successful in building up its technology sector.",
-        active: true,
-      },
-      {
-        timestamp: '00:24',
-        text: 'What do you understand about how China is able to over the past 10 years build so many incredible world-class companies and world-class engineering teams?',
-      },
-      {
-        timestamp: '00:44',
-        text: 'Well first of all let’s start with some facts. China now graduates more engineers every year than the United States and Europe combined.',
-      },
-      {
-        timestamp: '01:12',
-        text: 'Then layer on the supply chain density, the speed of iteration, and the size of the domestic market, and you have a very unusual innovation environment.',
-      },
-    ],
-    subtitleLanguages: [
-      { value: 'en-auto', label: 'English (Auto)' },
-      { value: 'zh-cn', label: 'Chinese (Simplified)' },
-    ],
-    subtitlesIntro:
-      '00:12 Building a startup in 2025 starts with a clear problem, not a clever feature.',
-    subtitlesBody:
-      '01:34 Founders who validate demand early dramatically reduce wasted product cycles.\n04:10 A credible pitch deck explains why this market matters now and why your team can win.\n07:42 Your first team should be small, fast, and deeply aligned on the mission.',
     highlightInputPlaceholder: 'Topic?',
-    highlightTopics: [
-      {
-        id: 'validation',
-        label: 'Idea Validation',
-        segments: [
-          {
-            start: '00:12',
-            end: '01:08',
-            transcript:
-              'Building a startup in 2025 starts with a clear problem, not a clever feature. You want proof that the pain is urgent before you invest real build time.',
-          },
-          {
-            start: '01:34',
-            end: '02:26',
-            transcript:
-              'Founders who validate demand early dramatically reduce wasted product cycles. Talk to users, test the message, and learn what they already do to solve it.',
-          },
-          {
-            start: '03:18',
-            end: '04:02',
-            transcript:
-              'The strongest validation signal is repetition. If multiple users describe the same pain with the same urgency, you are probably looking at a real market need.',
-          },
-        ],
-      },
-      {
-        id: 'mvp',
-        label: 'MVP Scope',
-        segments: [
-          {
-            start: '05:02',
-            end: '05:58',
-            transcript:
-              'Your MVP only needs one tight value loop that real users immediately understand. It should solve one painful step clearly instead of trying to look complete.',
-          },
-          {
-            start: '06:24',
-            end: '07:05',
-            transcript:
-              'Ignore edge features early. Settings, polish, and automation can wait until the core behavior is repeated often enough to deserve optimization.',
-          },
-        ],
-      },
-      {
-        id: 'fundraising',
-        label: 'Fundraising',
-        segments: [
-          {
-            start: '08:40',
-            end: '09:26',
-            transcript:
-              'Fundraising works better when you already have concrete usage signals. Even lightweight traction gives investors a clearer reason to believe the story.',
-          },
-          {
-            start: '10:15',
-            end: '11:12',
-            transcript:
-              'A credible pitch explains why this market matters now, why your team can win, and why the current momentum is enough to justify the next round.',
-          },
-          {
-            start: '12:34',
-            end: '13:18',
-            transcript:
-              'Seek investors who already understand the category. The best early capital comes from people who recognize the pattern and can move quickly with conviction.',
-          },
-        ],
-      },
-    ],
-    chatMessages: [
-      {
-        role: 'assistant' as const,
-        text: 'This video covers a complete guide to building a startup in 2025, with these core takeaways:\n\n1. Idea Validation: How to quickly validate your business idea\n2. MVP Development: Strategies for building a minimum viable product\n3. Fundraising: The path from angel round to Series A\n4. Team Building: How to find the right co-founder',
-      },
-      {
-        role: 'user' as const,
-        text: 'What specific advice was given about fundraising?',
-      },
-      {
-        role: 'assistant' as const,
-        text: 'Regarding fundraising, the video suggests:\n• Start by validating your idea with your own funds first\n• Seek out industry-relevant angel investors\n• Prepare a clear and compelling pitch deck',
-      },
-    ],
     prompts: ['Key Points', 'Outline', 'Key Questions'],
     askPlaceholder: 'Ask anything about this video...',
-    transcriptHeading: 'Subtitles Snapshot',
-    transcriptNote:
-      'The subtitle stream is organized as short timecoded blocks so the user can jump back into the relevant part of the video.',
     summaryHeading: 'Auto Summary',
-    summaryBody:
-      'Founders who move fastest in 2025 are compressing the cycle between validating demand, shipping an MVP, and proving enough traction to raise from aligned angels.',
+    summaryEmpty: 'Analysis is not ready yet.',
+    summaryLoading: 'Generating a transcript-grounded summary...',
     mindMapHeading: 'Conversation Graph',
-    mindMapBody:
-      'Problem → validation interviews → MVP scope → traction metrics → investor story → first hires.',
+    mindMapBody: 'Mind Map is reserved and will be added later.',
     notesHeading: 'Saved Notes',
-    notesBody:
-      'Use this panel for extracted quotes, action items, and timestamped observations while watching.',
+    notesBody: 'Notes stays as a placeholder in this version.',
+    jump: 'Jump',
+    analyzing: 'Analyzing',
+    processing: 'Processing transcript',
+    thinking: 'Building topics and summary',
+    analyze: 'Analyze',
+    exportPrompt: 'Click OK to export SRT. Click Cancel to export TXT.',
+    authLanguage: 'Original',
+    emptyHighlights: 'No highlights yet. Enter a topic to generate time ranges.',
+    emptyCaptions: 'Captions will appear after transcript generation completes.',
+    emptyChat:
+      'Once the transcript is ready, you can ask grounded questions about this video.',
+    sendFailed: 'Chat failed. Please try again.',
+    topicFailed: 'Topic generation failed. Please try again.',
+    analysisFailed: 'Video analysis failed.',
   },
   zh: {
-    searchPlaceholder: '粘贴视频链接，开始分析...',
+    searchPlaceholder: '粘贴 YouTube 链接，开始分析...',
     credits: '128',
-    duration: '8.27 分钟',
-    overview: '概览',
-    highlight: 'Highlight',
-    subtitles: '字幕',
     chat: '对话',
     summary: '摘要',
     captions: '字幕',
     mindMap: '脑图',
     notes: '笔记',
-    title: 'How to Build a Startup in 2025 - Complete Guide',
-    channel: 'TechVision · 24.5 万订阅',
-    subscribe: '订阅',
-    like: '1.2K',
-    share: '分享',
-    save: '收藏',
-    download: '下载',
     copySubtitles: '复制字幕',
     downloadSubtitles: '下载字幕',
-    views: '120 万次观看',
-    published: '发布于 2025-03-15',
-    description:
-      '这是一份关于如何在 2025 年打造创业公司的完整指南，覆盖从想法验证、产品开发、融资策略到团队搭建的完整路径，适合创业者与关注商业的人群。',
-    tags: ['#创业', '#2025指南', '#Entrepreneurship'],
-    summaryPoints: [
-      '在写代码或融资之前，先验证问题是否真实存在。',
-      'MVP 只需要聚焦一个足够清晰的核心价值闭环。',
-      '融资效率来自 traction、叙事和市场时机的同步成立。',
-      '早期招聘最重要的是补齐能力短板，而不是单纯扩编。',
-    ],
-    subtitleItems: [
-      {
-        timestamp: '00:03',
-        text: '你最近去过中国，所以我很好奇想问你，中国在建设自己的科技产业方面为什么会这么成功。',
-        active: true,
-      },
-      {
-        timestamp: '00:24',
-        text: '过去十年里，中国是怎么建立起这么多世界级公司，以及这么多世界级工程团队的？',
-      },
-      {
-        timestamp: '00:44',
-        text: '先从一些事实开始说起。中国每年毕业的工程师数量，现在已经超过美国和欧洲的总和。',
-      },
-      {
-        timestamp: '01:12',
-        text: '再叠加高密度供应链、极快的迭代速度，以及巨大的本土市场，就形成了一个非常特殊的创新环境。',
-      },
-    ],
-    subtitleLanguages: [
-      { value: 'en-auto', label: 'English（自动识别）' },
-      { value: 'zh-cn', label: '中文（简体）' },
-    ],
-    subtitlesIntro:
-      '00:12 在 2025 年做创业，起点应该是清晰的问题，而不是一个看起来聪明的功能。',
-    subtitlesBody:
-      '01:34 越早验证需求，越能减少无效的产品迭代。\n04:10 一份可信的 pitch deck 需要讲清楚市场窗口、竞争优势和团队能力。\n07:42 第一批成员要小而精，并且在方向上高度一致。',
     highlightInputPlaceholder: '主题?',
-    highlightTopics: [
-      {
-        id: 'validation',
-        label: '需求验证',
-        segments: [
-          {
-            start: '00:12',
-            end: '01:08',
-            transcript:
-              '在 2025 年做创业，起点应该是清晰的问题，而不是一个看起来聪明的功能。先确认这个痛点是否真实且足够强烈。',
-          },
-          {
-            start: '01:34',
-            end: '02:26',
-            transcript:
-              '越早验证需求，越能减少无效的产品迭代。先通过访谈、落地页或轻量测试去确认用户是否真的在意这个问题。',
-          },
-          {
-            start: '03:18',
-            end: '04:02',
-            transcript:
-              '如果多个用户反复提到同一个痛点，并且已经在用低效方式自行解决，这通常说明你找到了值得切入的主题。',
-          },
-        ],
-      },
-      {
-        id: 'mvp',
-        label: 'MVP 范围',
-        segments: [
-          {
-            start: '05:02',
-            end: '05:58',
-            transcript:
-              'MVP 只需要聚焦一个足够清晰的核心价值闭环，让用户在最短路径里真正感受到价值，而不是做成一个完整产品。',
-          },
-          {
-            start: '06:24',
-            end: '07:05',
-            transcript:
-              '自动化、设置项和精细体验都应该等核心行为被反复验证后再补，第一版先不要被边缘能力拖慢。',
-          },
-        ],
-      },
-      {
-        id: 'fundraising',
-        label: '融资',
-        segments: [
-          {
-            start: '08:40',
-            end: '09:26',
-            transcript:
-              '融资效率来自 traction、叙事和市场时机的同步成立。哪怕只是早期信号，也能显著提升故事的可信度。',
-          },
-          {
-            start: '10:15',
-            end: '11:12',
-            transcript:
-              '一份可信的 pitch deck 需要讲清楚市场窗口、竞争优势和团队能力，也就是为什么是现在、为什么是你们、为什么能赢。',
-          },
-          {
-            start: '12:34',
-            end: '13:18',
-            transcript:
-              '更适合优先接触对你所在赛道已经有理解的天使或基金，这类投资人更容易快速判断并建立信任。',
-          },
-        ],
-      },
-    ],
-    chatMessages: [
-      {
-        role: 'assistant' as const,
-        text: '这个视频梳理了 2025 年创业的完整路径，核心包含：\n\n1. 想法验证：如何快速判断需求是否真实存在\n2. MVP 开发：如何用更小范围做出可验证产品\n3. 融资路径：从天使轮到 Series A 的准备重点\n4. 团队搭建：如何找到真正互补的联合创始人',
-      },
-      {
-        role: 'user' as const,
-        text: '视频里关于融资给了哪些具体建议？',
-      },
-      {
-        role: 'assistant' as const,
-        text: '关于融资，视频给出的建议包括：\n• 先用自有资源验证方向，尽量提高议价能力\n• 优先接触与你行业认知更匹配的天使投资人\n• 用清晰且有说服力的 Pitch Deck 去解释机会和进展',
-      },
-    ],
     prompts: ['关键点', '大纲', '关键问题'],
-    askPlaceholder: '围绕这个视频继续提问...',
-    transcriptHeading: '字幕速览',
-    transcriptNote:
-      '字幕区按时间片段组织，用户可以快速回跳到视频中的相关段落。',
+    askPlaceholder: '继续围绕这个视频提问...',
     summaryHeading: '自动摘要',
-    summaryBody:
-      '2025 年创业效率最高的团队，往往都在尽量压缩“验证需求、交付 MVP、拿到初步 traction”这三个步骤之间的时间差。',
+    summaryEmpty: '分析结果尚未生成。',
+    summaryLoading: '正在生成基于字幕的摘要...',
     mindMapHeading: '内容关系图',
-    mindMapBody:
-      '问题定义 → 用户验证 → MVP 范围 → traction 指标 → 融资叙事 → 关键招聘。',
+    mindMapBody: 'Mind Map 功能保留，后续补上。',
     notesHeading: '保存笔记',
-    notesBody: '这里适合沉淀高价值观点、行动项，以及带时间戳的观察记录。',
+    notesBody: 'Notes 功能在这一版继续保留占位。',
+    jump: '跳转',
+    analyzing: '分析中',
+    processing: '正在生成字幕',
+    thinking: '正在整理主题与摘要',
+    analyze: '分析',
+    exportPrompt: '点击“确定”导出 SRT，点击“取消”导出 TXT。',
+    authLanguage: '原始字幕',
+    emptyHighlights: '暂无高亮结果，可输入主题生成对应时间范围。',
+    emptyCaptions: '字幕生成完成后会展示在这里。',
+    emptyChat: '字幕就绪后，你可以基于视频内容继续提问。',
+    sendFailed: '对话失败，请稍后重试。',
+    topicFailed: '主题定位失败，请稍后重试。',
+    analysisFailed: '视频分析失败。',
   },
 };
 
@@ -371,6 +134,7 @@ type VideoChatCopy = typeof copy.en;
 
 type VideoChatPageProps = {
   locale: string;
+  initialUrl?: string;
 };
 
 type Message = {
@@ -384,202 +148,333 @@ type SubtitleItem = {
   active?: boolean;
 };
 
-type HighlightSegment = {
-  start: string;
-  end: string;
-  transcript: string;
+type ApiEnvelope<T> = {
+  code: number;
+  message: string;
+  data?: T;
 };
 
-type HighlightTopic = {
-  id: string;
-  label: string;
-  segments: HighlightSegment[];
-};
-
-type CustomHighlightTopic = {
-  id: string;
-  label: string;
-  sourceId: string;
-};
-
-const VIDEO_DURATION_SECONDS = 45 * 60 + 20;
-const INITIAL_PLAYBACK_POSITION = 12 * 60 + 34;
-
-function parseTimestampToSeconds(timestamp: string) {
-  const [minutes = '0', seconds = '0'] = timestamp.split(':');
-  return Number(minutes) * 60 + Number(seconds);
-}
-
-function formatSecondsAsTimestamp(totalSeconds: number) {
-  const safeTotal = Math.max(0, Math.floor(totalSeconds));
-  const minutes = Math.floor(safeTotal / 60);
-  const seconds = safeTotal % 60;
-
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function resolveHighlightTopic(
-  query: string,
-  topics: HighlightTopic[]
-): HighlightTopic | undefined {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (!normalizedQuery) {
-    return topics[0];
-  }
-
-  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
-
-  const scoredTopics = topics.map((topic) => {
-    const haystack = [
-      topic.id,
-      topic.label,
-      ...topic.segments.map((segment) => segment.transcript),
-    ]
-      .join(' ')
-      .toLowerCase();
-
-    const exactMatch = haystack.includes(normalizedQuery) ? 4 : 0;
-    const tokenScore = queryTokens.reduce(
-      (score, token) => score + (haystack.includes(token) ? 1 : 0),
-      0
-    );
-
-    return {
-      topic,
-      score: exactMatch + tokenScore,
-    };
+async function postJson<T>(url: string, body: Record<string, unknown>) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
   });
 
-  return scoredTopics.sort((a, b) => b.score - a.score)[0]?.topic ?? topics[0];
+  const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T>;
+  if (!response.ok || payload.code !== 0) {
+    throw new Error(payload.message || 'request failed');
+  }
+
+  return payload.data as T;
 }
 
-export function VideoChatPage({ locale }: VideoChatPageProps) {
+function slugify(value: string) {
+  return String(value || 'video')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function buildAssistantIntro(
+  analysis: VideoAnalysisPayload,
+  locale: string
+): Message {
+  const overview = analysis.summary.overview?.trim();
+  const points = analysis.summary.points
+    .slice(0, 4)
+    .map((point, index) => {
+      const prefix = point.timestamp ? `[${point.timestamp}] ` : '';
+      return `${index + 1}. ${prefix}${point.title || point.text}`;
+    })
+    .join('\n');
+
+  return {
+    role: 'assistant',
+    text:
+      locale === 'zh'
+        ? `我已经读完这段视频字幕。${overview ? `\n\n${overview}` : ''}${points ? `\n\n${points}` : ''}`
+        : `I have analyzed the transcript.${overview ? `\n\n${overview}` : ''}${points ? `\n\n${points}` : ''}`,
+  };
+}
+
+function getSubtitleItems(
+  transcript: TranscriptSegment[],
+  activeStart?: number
+): SubtitleItem[] {
+  return transcript.map((segment) => ({
+    timestamp: formatTimestamp(segment.start),
+    text: segment.text,
+    active:
+      typeof activeStart === 'number'
+        ? Math.abs(segment.start - activeStart) < 0.5
+        : false,
+  }));
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
+export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const content = locale === 'zh' ? copy.zh : copy.en;
-  const [subtitleLanguage, setSubtitleLanguage] = useState(
-    content.subtitleLanguages[0]?.value ?? 'en-auto'
-  );
+  const router = useRouter();
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const hasBootstrappedRef = useRef(false);
+
+  const [inputUrl, setInputUrl] = useState(initialUrl || '');
+  const [analysisState, setAnalysisState] = useState<
+    'idle' | 'submitting' | 'polling' | 'ready' | 'error'
+  >(initialUrl ? 'submitting' : 'idle');
+  const [analysisId, setAnalysisId] = useState('');
+  const [analysis, setAnalysis] = useState<VideoAnalysisPayload | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedHighlightTopic, setSelectedHighlightTopic] = useState('');
+  const [activeHighlightStart, setActiveHighlightStart] = useState<number>(0);
   const [chatInput, setChatInput] = useState('');
   const [chatInputMode, setChatInputMode] = useState('auto');
-  const [playbackPosition, setPlaybackPosition] = useState(
-    INITIAL_PLAYBACK_POSITION
-  );
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const [customHighlightDraft, setCustomHighlightDraft] = useState('');
-  const [customHighlightTopics, setCustomHighlightTopics] = useState<
-    CustomHighlightTopic[]
-  >([]);
+  const [customTopics, setCustomTopics] = useState<TopicRange[]>([]);
   const [isCustomHighlightEditing, setIsCustomHighlightEditing] =
     useState(false);
-  const [selectedHighlightTopic, setSelectedHighlightTopic] = useState(
-    content.highlightTopics[0]?.id ?? ''
-  );
-  const [activeHighlightTimestamp, setActiveHighlightTimestamp] = useState(
-    content.highlightTopics[0]?.segments[0]?.start ?? ''
-  );
-  const displayedSubtitleItems =
-    subtitleLanguage === 'zh-cn'
-      ? copy.zh.subtitleItems
-      : copy.en.subtitleItems;
 
-  const subtitleExportText = displayedSubtitleItems
-    .map((item) => `${item.timestamp} ${item.text}`)
-    .join('\n\n');
-
-  const selectedSubtitleLanguage =
-    content.subtitleLanguages.find((item) => item.value === subtitleLanguage) ??
-    content.subtitleLanguages[0];
-  const selectedCustomHighlightTopic = customHighlightTopics.find(
-    (item) => item.id === selectedHighlightTopic
+  const allTopics = useMemo(
+    () => [...customTopics, ...(analysis?.topics || [])],
+    [analysis?.topics, customTopics]
   );
   const activeHighlight =
-    content.highlightTopics.find((item) =>
-      item.id ===
-      (selectedCustomHighlightTopic?.sourceId ?? selectedHighlightTopic)
-    ) ??
-    content.highlightTopics[0];
-  const playbackProgress = Math.min(
-    100,
-    (playbackPosition / VIDEO_DURATION_SECONDS) * 100
+    allTopics.find((topic) => topic.id === selectedHighlightTopic) ||
+    allTopics[0] ||
+    null;
+  const displayedSubtitleItems = useMemo(
+    () => getSubtitleItems(analysis?.transcript || [], activeHighlightStart),
+    [analysis?.transcript, activeHighlightStart]
   );
 
-  async function handleCopySubtitles() {
-    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+  useEffect(() => {
+    if (!initialUrl || hasBootstrappedRef.current) return;
+    hasBootstrappedRef.current = true;
+    void handleAnalyze(initialUrl);
+  }, [initialUrl]);
+
+  useEffect(() => {
+    if (!analysis) {
+      setCustomTopics([]);
+      setSelectedHighlightTopic('');
+      setActiveHighlightStart(0);
+      setChatMessages([]);
       return;
     }
 
-    await navigator.clipboard.writeText(subtitleExportText);
+    const firstTopic = analysis.topics[0];
+    const firstSegment = firstTopic?.segments[0];
+    setSelectedHighlightTopic(firstTopic?.id || '');
+    setActiveHighlightStart(firstSegment?.start || 0);
+    setChatMessages([buildAssistantIntro(analysis, locale)]);
+  }, [analysis, locale]);
+
+  useEffect(() => {
+    if (!analysisId || analysisState !== 'polling') return;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      while (!cancelled) {
+        try {
+          const result = await postJson<{
+            analysisId: string;
+            status: 'pending' | 'processing' | 'success' | 'error';
+            analysis?: VideoAnalysisPayload;
+            error?: string;
+          }>('/api/video/analysis/status', {
+            analysisId,
+          });
+
+          if (cancelled) return;
+
+          if (result.status === 'success' && result.analysis) {
+            setAnalysis(result.analysis);
+            setAnalysisState('ready');
+            setErrorMessage('');
+            return;
+          }
+
+          if (result.status === 'error') {
+            setAnalysisState('error');
+            setErrorMessage(result.error || content.analysisFailed);
+            return;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 2500));
+        } catch (error: any) {
+          if (cancelled) return;
+          setAnalysisState('error');
+          setErrorMessage(error.message || content.analysisFailed);
+          return;
+        }
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisId, analysisState, content.analysisFailed]);
+
+  async function handleAnalyze(urlOverride?: string) {
+    const nextUrl = String(urlOverride || inputUrl || '').trim();
+    if (!nextUrl) return;
+
+    setErrorMessage('');
+    setAnalysis(null);
+    setCustomTopics([]);
+    setAnalysisState('submitting');
+    setInputUrl(nextUrl);
+    router.replace(`/${locale}/video/chat?url=${encodeURIComponent(nextUrl)}`);
+
+    try {
+      const result = await postJson<{
+        analysisId: string;
+        status: 'pending' | 'processing' | 'success';
+        analysis?: VideoAnalysisPayload;
+      }>('/api/video/analysis', {
+        url: nextUrl,
+      });
+
+      setAnalysisId(result.analysisId);
+
+      if (result.status === 'success' && result.analysis) {
+        setAnalysis(result.analysis);
+        setAnalysisState('ready');
+        return;
+      }
+
+      setAnalysisState('polling');
+    } catch (error: any) {
+      setAnalysisState('error');
+      setErrorMessage(error.message || content.analysisFailed);
+    }
+  }
+
+  function seekTo(startSeconds: number) {
+    setActiveHighlightStart(startSeconds);
+
+    const targetWindow = iframeRef.current?.contentWindow;
+    if (!targetWindow) return;
+
+    const command = (func: string, args: unknown[]) =>
+      targetWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func,
+          args,
+        }),
+        'https://www.youtube.com'
+      );
+
+    command('seekTo', [Math.floor(startSeconds), true]);
+    command('playVideo', []);
+  }
+
+  async function handleCopySubtitles() {
+    if (!analysis?.transcript?.length || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(exportTranscript(analysis.transcript, 'txt'));
   }
 
   function handleDownloadSubtitles() {
-    if (typeof document === 'undefined') {
+    if (!analysis?.transcript?.length || typeof window === 'undefined') return;
+    const format: TranscriptExportFormat = window.confirm(content.exportPrompt)
+      ? 'srt'
+      : 'txt';
+
+    downloadFile(
+      `${slugify(analysis.videoInfo.title || analysis.videoInfo.videoId)}.${format}`,
+      exportTranscript(analysis.transcript, format),
+      format === 'srt' ? 'application/x-subrip;charset=utf-8' : 'text/plain;charset=utf-8'
+    );
+  }
+
+  async function handleSendChat(prompt?: string) {
+    if (!analysisId || isChatLoading) return;
+
+    const nextInput = String(prompt || chatInput).trim();
+    if (!nextInput) return;
+
+    const userMessage: Message = { role: 'user', text: nextInput };
+    const nextMessages = [...chatMessages, userMessage];
+    setChatMessages(nextMessages);
+    setChatInput('');
+    setIsChatLoading(true);
+
+    try {
+      const result = await postJson<{ answer: string }>('/api/video/chat', {
+        analysisId,
+        messages: nextMessages.map((message) => ({
+          role: message.role,
+          content: message.text,
+        })),
+      });
+
+      setChatMessages((current) => [
+        ...current,
+        { role: 'assistant', text: result.answer },
+      ]);
+    } catch {
+      setChatMessages((current) => [
+        ...current,
+        { role: 'assistant', text: content.sendFailed },
+      ]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  }
+
+  async function handleConfirmCustomHighlight() {
+    const theme = customHighlightDraft.trim();
+    if (!theme || !analysisId) {
+      setIsCustomHighlightEditing(false);
+      setCustomHighlightDraft('');
       return;
     }
 
-    const blob = new Blob([subtitleExportText], {
-      type: 'text/plain;charset=utf-8',
-    });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
+    try {
+      const result = await postJson<{ topics: TopicRange[] }>('/api/video/topic', {
+        analysisId,
+        theme,
+      });
 
-    link.href = url;
-    link.download = `subtitles-${selectedSubtitleLanguage?.value ?? 'export'}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+      const nextTopics = result.topics.map((topic, index) => ({
+        ...topic,
+        id: `custom-${Date.now()}-${index}-${topic.id}`,
+      }));
 
-  function handleHighlightTopicChange(topic: HighlightTopic) {
-    setSelectedHighlightTopic(topic.id);
-    setActiveHighlightTimestamp(topic.segments[0]?.start ?? '');
-  }
-
-  function handleCustomHighlightTopicChange(topic: CustomHighlightTopic) {
-    const matchedTopic = content.highlightTopics.find(
-      (item) => item.id === topic.sourceId
-    );
-
-    setSelectedHighlightTopic(topic.id);
-    setActiveHighlightTimestamp(matchedTopic?.segments[0]?.start ?? '');
-  }
-
-  function handleOpenCustomHighlightEditor() {
-    setCustomHighlightDraft('');
-    setIsCustomHighlightEditing(true);
-  }
-
-  function handleCancelCustomHighlight() {
-    setCustomHighlightDraft('');
-    setIsCustomHighlightEditing(false);
-  }
-
-  function handleConfirmCustomHighlight() {
-    const normalizedValue = customHighlightDraft.trim();
-
-    if (!normalizedValue) {
-      handleCancelCustomHighlight();
-      return;
+      setCustomTopics((current) => [...nextTopics, ...current]);
+      if (nextTopics[0]?.segments[0]) {
+        setSelectedHighlightTopic(nextTopics[0].id);
+        seekTo(nextTopics[0].segments[0].start);
+      }
+    } catch {
+      setErrorMessage(content.topicFailed);
+    } finally {
+      setCustomHighlightDraft('');
+      setIsCustomHighlightEditing(false);
     }
-
-    const matchedTopic = resolveHighlightTopic(
-      normalizedValue,
-      content.highlightTopics
-    );
-    const nextCustomTopic: CustomHighlightTopic = {
-      id: `custom-${Date.now()}`,
-      label: normalizedValue,
-      sourceId: matchedTopic?.id ?? content.highlightTopics[0]?.id ?? '',
-    };
-
-    setCustomHighlightTopics((current) => [...current, nextCustomTopic]);
-    setSelectedHighlightTopic(nextCustomTopic.id);
-    setActiveHighlightTimestamp(matchedTopic?.segments[0]?.start ?? '');
-    setCustomHighlightDraft('');
-    setIsCustomHighlightEditing(false);
   }
 
-  function handleJumpToHighlight(segment: HighlightSegment) {
-    setPlaybackPosition(parseTimestampToSeconds(segment.start));
-    setActiveHighlightTimestamp(segment.start);
-  }
+  const videoEmbedUrl = analysis?.videoInfo.videoId
+    ? buildYouTubeEmbedUrl(analysis.videoInfo.videoId)
+    : null;
 
   return (
     <div
@@ -602,11 +497,25 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
               <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
               <Input
                 aria-label="video search"
-                className="border-primary bg-card h-10 rounded-xl pr-10 pl-10 shadow-xs focus-visible:border-primary focus-visible:ring-0"
-                defaultValue=""
+                className="border-primary bg-card h-10 rounded-xl pr-12 pl-10 shadow-xs focus-visible:border-primary focus-visible:ring-0"
+                value={inputUrl}
+                onChange={(event) => setInputUrl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void handleAnalyze();
+                  }
+                }}
                 placeholder={content.searchPlaceholder}
               />
-              <ArrowRight className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
+              <button
+                type="button"
+                onClick={() => void handleAnalyze()}
+                aria-label={content.analyze}
+                className="text-muted-foreground absolute top-1/2 right-3.5 -translate-y-1/2"
+              >
+                <ArrowRight className="size-4" />
+              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -616,9 +525,7 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
               <TopBadge icon={Globe}>
                 {locale === 'zh' ? '中文' : 'EN'}
               </TopBadge>
-              <TopMetric icon={Coins}>
-                {content.credits}
-              </TopMetric>
+              <TopMetric icon={Coins}>{content.credits}</TopMetric>
               <div className="border-border flex size-9 items-center justify-center rounded-full border-2 bg-[var(--color-accent)] text-sm font-semibold text-white">
                 J
               </div>
@@ -631,59 +538,55 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
         <section className="min-w-0 px-4 pb-4 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0 lg:px-6 lg:pb-6">
           <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
             <div className="bg-foreground relative shrink-0 overflow-hidden rounded-2xl shadow-sm">
-              <div className="aspect-video w-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18))]" />
+              {videoEmbedUrl ? (
+                <iframe
+                  ref={iframeRef}
+                  src={videoEmbedUrl}
+                  title={analysis?.videoInfo.title || 'YouTube Player'}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="aspect-video w-full"
+                />
+              ) : (
+                <div className="aspect-video w-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18))]" />
+              )}
 
-              <button
-                className="absolute top-1/2 left-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/15"
-                type="button"
-                aria-label="Play video"
-              >
-                <Play className="size-7 fill-current" />
-              </button>
-
-              <div className="absolute right-5 bottom-5 left-5 flex flex-col gap-3 rounded-xl bg-black/80 px-4 py-3 text-white backdrop-blur-md lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-3 text-sm">
-                  <Play className="size-4 fill-current" />
-                  <Volume2 className="size-4 text-white/75" />
-                  <span className="text-white/75">
-                    {formatSecondsAsTimestamp(playbackPosition)} /{' '}
-                    {formatSecondsAsTimestamp(VIDEO_DURATION_SECONDS)}
-                  </span>
-                </div>
-
-                <div className="flex flex-1 items-center gap-3 lg:max-w-[420px]">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
-                    <div
-                      className="bg-primary h-full rounded-full transition-[width] duration-300"
-                      style={{ width: `${playbackProgress}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-white/75">
-                  <Captions className="size-4" />
-                  <Settings2 className="size-4" />
-                  <Fullscreen className="size-4" />
-                </div>
-              </div>
+              {!videoEmbedUrl ? (
+                <button
+                  className="absolute top-1/2 left-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/15"
+                  type="button"
+                  aria-label="Play video"
+                  onClick={() => void handleAnalyze()}
+                >
+                  <Play className="size-7 fill-current" />
+                </button>
+              ) : null}
             </div>
 
             <HighlightPanel
               content={content}
               locale={locale}
               customHighlightDraft={customHighlightDraft}
-              customHighlightTopics={customHighlightTopics}
+              customTopics={customTopics}
+              baseTopics={analysis?.topics || []}
               activeHighlight={activeHighlight}
-              activeHighlightTimestamp={activeHighlightTimestamp}
+              activeHighlightStart={activeHighlightStart}
               isCustomHighlightEditing={isCustomHighlightEditing}
-              onCustomHighlightTopicChange={setCustomHighlightDraft}
-              onOpenCustomHighlightEditor={handleOpenCustomHighlightEditor}
-              onCancelCustomHighlight={handleCancelCustomHighlight}
-              onConfirmCustomHighlight={handleConfirmCustomHighlight}
-              onTopicChange={handleHighlightTopicChange}
-              onCustomTopicSelect={handleCustomHighlightTopicChange}
-              onJumpToSegment={handleJumpToHighlight}
               selectedHighlightTopic={selectedHighlightTopic}
+              onCustomHighlightTopicChange={setCustomHighlightDraft}
+              onOpenCustomHighlightEditor={() => setIsCustomHighlightEditing(true)}
+              onCancelCustomHighlight={() => {
+                setCustomHighlightDraft('');
+                setIsCustomHighlightEditing(false);
+              }}
+              onConfirmCustomHighlight={() => void handleConfirmCustomHighlight()}
+              onTopicChange={(topic) => {
+                setSelectedHighlightTopic(topic.id);
+                if (topic.segments[0]) {
+                  seekTo(topic.segments[0].start);
+                }
+              }}
+              onJumpToSegment={(segment) => seekTo(segment.start)}
             />
           </div>
         </section>
@@ -732,12 +635,18 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
             >
               <ScrollArea className="min-h-0 flex-1 px-5 py-5">
                 <div className="space-y-4 pb-4">
-                  {content.chatMessages.map((message, index) => (
-                    <ChatBubble
-                      key={`${message.role}-${index}`}
-                      message={message}
-                    />
-                  ))}
+                  {chatMessages.length > 0 ? (
+                    chatMessages.map((message, index) => (
+                      <ChatBubble
+                        key={`${message.role}-${index}`}
+                        message={message}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-muted-foreground text-sm leading-7">
+                      {content.emptyChat}
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
 
@@ -748,6 +657,12 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
                       key={prompt}
                       variant="outline"
                       className="border-border bg-background h-8 rounded-full px-3 text-xs font-medium"
+                      onClick={() => {
+                        setChatInput(prompt);
+                        if (analysisState === 'ready') {
+                          void handleSendChat(prompt);
+                        }
+                      }}
                     >
                       {index === 0 && (
                         <Lightbulb className="text-primary size-3.5" />
@@ -776,6 +691,8 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
                       size="icon"
                       type="button"
                       aria-label="Send message"
+                      disabled={analysisState !== 'ready' || isChatLoading}
+                      onClick={() => void handleSendChat()}
                       className={cn(
                         'absolute right-4 bottom-4 size-10 rounded-xl',
                         chatInput.trim()
@@ -814,6 +731,11 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
                         variant="ghost"
                         size="icon"
                         aria-label="Copy"
+                        onClick={() =>
+                          navigator.clipboard?.writeText(
+                            chatMessages.map((message) => message.text).join('\n\n')
+                          )
+                        }
                         className="text-muted-foreground hover:text-foreground size-10 rounded-xl"
                       >
                         <Clipboard className="size-5" />
@@ -840,14 +762,24 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
             </TabsContent>
 
             <SidebarContent value="summary">
-              <SummaryPanel content={content} />
+              <SummaryPanel
+                content={content}
+                analysis={analysis}
+                isLoading={analysisState === 'submitting' || analysisState === 'polling'}
+              />
             </SidebarContent>
             <SidebarContent value="captions">
               <CaptionsPanel
                 content={content}
                 displayedSubtitleItems={displayedSubtitleItems}
-                subtitleLanguage={subtitleLanguage}
-                onSubtitleLanguageChange={setSubtitleLanguage}
+                subtitleLanguage="original"
+                subtitleLanguages={[
+                  {
+                    value: 'original',
+                    label: content.authLanguage,
+                  },
+                ]}
+                onSubtitleLanguageChange={() => undefined}
                 onCopySubtitles={handleCopySubtitles}
                 onDownloadSubtitles={handleDownloadSubtitles}
               />
@@ -867,6 +799,14 @@ export function VideoChatPage({ locale }: VideoChatPageProps) {
           </Tabs>
         </aside>
       </main>
+
+      {errorMessage ? (
+        <div className="pointer-events-none fixed right-4 bottom-4 z-50">
+          <div className="border-border bg-card max-w-sm rounded-xl border px-4 py-3 text-sm shadow-lg">
+            {errorMessage}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -939,13 +879,21 @@ function WorkspaceTabTrigger({
   );
 }
 
-function SummaryPanel({ content }: { content: VideoChatCopy }) {
+function SummaryPanel({
+  content,
+  analysis,
+  isLoading,
+}: {
+  content: VideoChatCopy;
+  analysis: VideoAnalysisPayload | null;
+  isLoading: boolean;
+}) {
   return (
     <div className="border-border bg-card/70 h-full overflow-hidden rounded-2xl border shadow-xs">
       <ScrollArea className="h-full">
         <div className="flex flex-col gap-5 p-5">
           <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
-            {content.title}
+            {analysis?.videoInfo.title || 'YouTube Video'}
           </h1>
 
           <div>
@@ -953,17 +901,24 @@ function SummaryPanel({ content }: { content: VideoChatCopy }) {
               {content.summaryHeading}
             </h2>
             <p className="text-muted-foreground mt-3 text-sm leading-7">
-              {content.summaryBody}
+              {isLoading
+                ? content.summaryLoading
+                : analysis?.summary.overview || content.summaryEmpty}
             </p>
 
             <div className="mt-5 space-y-4">
-              {content.summaryPoints.map((point, index) => (
-                <div key={point} className="flex gap-3">
+              {(analysis?.summary.points || []).map((point, index) => (
+                <div
+                  key={`${point.timestamp || 'point'}-${index}`}
+                  className="flex gap-3"
+                >
                   <div className="text-primary min-w-5 text-sm font-semibold">
                     {index + 1}.
                   </div>
                   <p className="text-muted-foreground text-sm leading-6">
-                    {point}
+                    {point.timestamp ? `[${point.timestamp}] ` : ''}
+                    {point.title ? `${point.title}: ` : ''}
+                    {point.text}
                   </p>
                 </div>
               ))}
@@ -979,9 +934,10 @@ function HighlightPanel({
   content,
   locale,
   customHighlightDraft,
-  customHighlightTopics,
+  customTopics,
+  baseTopics,
   activeHighlight,
-  activeHighlightTimestamp,
+  activeHighlightStart,
   isCustomHighlightEditing,
   selectedHighlightTopic,
   onCustomHighlightTopicChange,
@@ -989,24 +945,23 @@ function HighlightPanel({
   onCancelCustomHighlight,
   onConfirmCustomHighlight,
   onTopicChange,
-  onCustomTopicSelect,
   onJumpToSegment,
 }: {
   content: VideoChatCopy;
   locale: string;
   customHighlightDraft: string;
-  customHighlightTopics: CustomHighlightTopic[];
-  activeHighlight?: HighlightTopic;
-  activeHighlightTimestamp: string;
+  customTopics: TopicRange[];
+  baseTopics: TopicRange[];
+  activeHighlight: TopicRange | null;
+  activeHighlightStart: number;
   isCustomHighlightEditing: boolean;
   selectedHighlightTopic: string;
   onCustomHighlightTopicChange: (value: string) => void;
   onOpenCustomHighlightEditor: () => void;
   onCancelCustomHighlight: () => void;
   onConfirmCustomHighlight: () => void;
-  onTopicChange: (topic: HighlightTopic) => void;
-  onCustomTopicSelect: (topic: CustomHighlightTopic) => void;
-  onJumpToSegment: (segment: HighlightSegment) => void;
+  onTopicChange: (topic: TopicRange) => void;
+  onJumpToSegment: (segment: TopicRange['segments'][number]) => void;
 }) {
   return (
     <div className="border-border bg-card/80 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border shadow-xs">
@@ -1062,11 +1017,11 @@ function HighlightPanel({
             </button>
           )}
 
-          {customHighlightTopics.map((topic) => (
+          {[...customTopics, ...baseTopics].map((topic) => (
             <button
               key={topic.id}
               type="button"
-              onClick={() => onCustomTopicSelect(topic)}
+              onClick={() => onTopicChange(topic)}
               className={cn(
                 'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                 topic.id === selectedHighlightTopic
@@ -1077,53 +1032,43 @@ function HighlightPanel({
               {topic.label}
             </button>
           ))}
-
-          {content.highlightTopics.map((topic) => (
-            <button
-                key={topic.id}
-                type="button"
-                onClick={() => onTopicChange(topic)}
-                className={cn(
-                  'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                  topic.id === selectedHighlightTopic
-                    ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                    : 'border-border bg-card text-foreground hover:bg-muted'
-                )}
-            >
-              {topic.label}
-            </button>
-          ))}
         </div>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-3 p-4">
-          {activeHighlight?.segments.map((segment) => (
-            <button
-              key={`${activeHighlight.id}-${segment.start}-${segment.end}`}
-              type="button"
-              onClick={() => onJumpToSegment(segment)}
-              className={cn(
-                'border-border bg-background hover:bg-muted/60 block w-full rounded-2xl border p-4 text-left transition-colors',
-                activeHighlightTimestamp === segment.start &&
-                  'bg-accent/55 dark:bg-accent/30'
-              )}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold">
-                  <Clock3 className="size-3.5" />
-                  {segment.start} - {segment.end}
-                </span>
-                <span className="text-primary inline-flex items-center gap-2 text-sm font-semibold">
-                  <Play className="size-4 fill-current" />
-                  {locale === 'zh' ? '跳转' : 'Jump'}
-                </span>
-              </div>
-              <p className="text-foreground mt-3 text-sm leading-7 font-medium">
-                {segment.transcript}
-              </p>
-            </button>
-          ))}
+          {activeHighlight?.segments?.length ? (
+            activeHighlight.segments.map((segment) => (
+              <button
+                key={`${activeHighlight.id}-${segment.start}-${segment.end}`}
+                type="button"
+                onClick={() => onJumpToSegment(segment)}
+                className={cn(
+                  'border-border bg-background hover:bg-muted/60 block w-full rounded-2xl border p-4 text-left transition-colors',
+                  Math.abs(activeHighlightStart - segment.start) < 0.5 &&
+                    'bg-accent/55 dark:bg-accent/30'
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold">
+                    <Clock3 className="size-3.5" />
+                    {formatTimestamp(segment.start)} - {formatTimestamp(segment.end)}
+                  </span>
+                  <span className="text-primary inline-flex items-center gap-2 text-sm font-semibold">
+                    <Play className="size-4 fill-current" />
+                    {content.jump}
+                  </span>
+                </div>
+                <p className="text-foreground mt-3 text-sm leading-7 font-medium">
+                  {segment.text}
+                </p>
+              </button>
+            ))
+          ) : (
+            <div className="text-muted-foreground text-sm leading-7">
+              {content.emptyHighlights}
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>
@@ -1134,6 +1079,7 @@ function CaptionsPanel({
   content,
   displayedSubtitleItems,
   subtitleLanguage,
+  subtitleLanguages,
   onSubtitleLanguageChange,
   onCopySubtitles,
   onDownloadSubtitles,
@@ -1141,6 +1087,7 @@ function CaptionsPanel({
   content: VideoChatCopy;
   displayedSubtitleItems: SubtitleItem[];
   subtitleLanguage: string;
+  subtitleLanguages: Array<{ value: string; label: string }>;
   onSubtitleLanguageChange: (value: string) => void;
   onCopySubtitles: () => void | Promise<void>;
   onDownloadSubtitles: () => void;
@@ -1171,7 +1118,7 @@ function CaptionsPanel({
               }
               className="border-border bg-card text-foreground focus-visible:border-primary h-9 min-w-[168px] appearance-none rounded-lg border py-0 pr-9 pl-8 text-sm font-medium shadow-none outline-none focus-visible:ring-0 sm:min-w-[220px]"
             >
-              {content.subtitleLanguages.map((language) => (
+              {subtitleLanguages.map((language) => (
                 <option key={language.value} value={language.value}>
                   {language.label}
                 </option>
@@ -1184,9 +1131,19 @@ function CaptionsPanel({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-3 p-4">
-          {displayedSubtitleItems.map((item) => (
-            <SubtitleListItem key={item.timestamp} item={item} merged />
-          ))}
+          {displayedSubtitleItems.length > 0 ? (
+            displayedSubtitleItems.map((item, index) => (
+              <SubtitleListItem
+                key={`${item.timestamp}-${index}`}
+                item={item}
+                merged
+              />
+            ))
+          ) : (
+            <div className="text-muted-foreground text-sm leading-7">
+              {content.emptyCaptions}
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>

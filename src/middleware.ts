@@ -23,7 +23,8 @@ export async function middleware(request: NextRequest) {
   if (
     pathWithoutLocale.startsWith('/admin') ||
     pathWithoutLocale.startsWith('/settings') ||
-    pathWithoutLocale.startsWith('/activity')
+    pathWithoutLocale.startsWith('/activity') ||
+    pathWithoutLocale.startsWith('/video/chat')
   ) {
     // Check if session cookie exists
     const sessionCookie = getSessionCookie(request);
@@ -56,6 +57,7 @@ export async function middleware(request: NextRequest) {
     !pathWithoutLocale.startsWith('/admin') &&
     !pathWithoutLocale.startsWith('/settings') &&
     !pathWithoutLocale.startsWith('/activity') &&
+    !pathWithoutLocale.startsWith('/video/chat') &&
     !pathWithoutLocale.startsWith('/sign-') &&
     !pathWithoutLocale.startsWith('/auth')
   ) {
