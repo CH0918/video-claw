@@ -77,8 +77,16 @@ export async function getUserByUserIds(userIds: string[]) {
 
 export async function getUserInfo() {
   const signUser = await getSignUser();
+  if (!signUser?.id) {
+    return signUser;
+  }
 
-  return signUser;
+  const dbUser = await findUserById(signUser.id);
+
+  return {
+    ...signUser,
+    ...dbUser,
+  };
 }
 
 export async function getUserCredits(userId: string) {

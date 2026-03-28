@@ -1,6 +1,27 @@
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, isAbsolute, resolve } from 'node:path';
+
 import { defineConfig } from 'drizzle-kit';
 
 import { envConfigs } from '@/config';
+
+function ensureLocalSqliteDir(databaseUrl: string) {
+  if (!databaseUrl.startsWith('file:')) return;
+
+  const filePath = databaseUrl.slice('file:'.length);
+  if (!filePath || filePath === ':memory:') return;
+
+  const absoluteFilePath = isAbsolute(filePath)
+    ? filePath
+    : resolve(process.cwd(), filePath);
+  const parentDir = dirname(absoluteFilePath);
+
+  if (!existsSync(parentDir)) {
+    mkdirSync(parentDir, { recursive: true });
+  }
+}
+
+ensureLocalSqliteDir(envConfigs.database_url ?? '');
 
 // get db credentials
 const dbCredentials: { url: string; authToken?: string } = {

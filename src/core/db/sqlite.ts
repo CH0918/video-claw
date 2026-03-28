@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, isAbsolute, resolve } from 'node:path';
+
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 
@@ -7,12 +10,30 @@ import { isCloudflareWorker } from '@/shared/lib/env';
 // SQLite/libsql singleton (only used when DB_SINGLETON_ENABLED === 'true' and not in Workers)
 let sqliteDbInstance: ReturnType<typeof drizzle> | null = null;
 
+function ensureLocalSqliteDir(databaseUrl: string) {
+  if (!databaseUrl.startsWith('file:')) return;
+
+  const filePath = databaseUrl.slice('file:'.length);
+  if (!filePath || filePath === ':memory:') return;
+
+  const absoluteFilePath = isAbsolute(filePath)
+    ? filePath
+    : resolve(process.cwd(), filePath);
+  const parentDir = dirname(absoluteFilePath);
+
+  if (!existsSync(parentDir)) {
+    mkdirSync(parentDir, { recursive: true });
+  }
+}
+
 // get sqlite db instance (works for both local sqlite file:... and turso/libsql://...)
 export function getSqliteDb() {
   const databaseUrl = envConfigs.database_url;
   if (!databaseUrl) {
     throw new Error('DATABASE_URL is not set');
   }
+
+  ensureLocalSqliteDir(databaseUrl);
 
   // custom options
   const options: Record<string, string> = {};

@@ -42,6 +42,7 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
 
   // get session (MUST be called unconditionally to keep hook order stable)
   const { data: session, isPending } = useSession();
+  const sessionUser = session?.user as UserType | undefined;
 
   // one tap initialized
   const oneTapInitialized = useRef(false);
@@ -69,6 +70,14 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
     fetchUserInfo,
     showOneTap,
   } = useAppContext();
+
+  const displayUser =
+    authUser || sessionUser
+      ? ({
+          ...(sessionUser ?? {}),
+          ...(authUser ?? {}),
+        } as UserType)
+      : null;
 
   useEffect(() => {
     fetchConfigs();
@@ -108,7 +117,6 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
       return;
     }
 
-    const sessionUser = session?.user;
     const currentUserId = authUser?.id;
     const sessionUserId = sessionUser?.id;
 
@@ -129,7 +137,7 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
     );
   }
 
-  if (authUser) {
+  if (displayUser) {
     return (
       <SidebarMenu className="gap-4 px-3">
         <SidebarMenuItem>
@@ -140,17 +148,20 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={authUser.image || ''} alt={authUser.name} />
+                  <AvatarImage
+                    src={displayUser.image || ''}
+                    alt={displayUser.name}
+                  />
                   <AvatarFallback className="rounded-lg">
-                    {authUser.name?.charAt(0)}
+                    {displayUser.name?.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">
-                    {authUser.name}
+                    {displayUser.name}
                   </span>
                   {user.show_email && (
-                    <span className="truncate text-xs">{authUser.email}</span>
+                    <span className="truncate text-xs">{displayUser.email}</span>
                   )}
                 </div>
                 <ChevronsUpDown className="ml-auto size-4" />
@@ -166,19 +177,19 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage
-                      src={authUser.image || ''}
-                      alt={authUser.name}
+                      src={displayUser.image || ''}
+                      alt={displayUser.name}
                     />
                     <AvatarFallback className="rounded-lg">
-                      {authUser.name?.charAt(0) || 'U'}
+                      {displayUser.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {authUser.name}
+                      {displayUser.name}
                     </span>
                     {user.show_email && (
-                      <span className="truncate text-xs">{authUser.email}</span>
+                      <span className="truncate text-xs">{displayUser.email}</span>
                     )}
                   </div>
                 </div>

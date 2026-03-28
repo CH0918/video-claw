@@ -11,10 +11,16 @@ import {
   ThemeToggler,
 } from '@/shared/blocks/common';
 import { SignModal } from '@/shared/blocks/sign/sign-modal';
+import { UserNav } from '@/shared/types/blocks/common';
 import { Header as HeaderType } from '@/shared/types/blocks/landing';
 
 export function Header({ header }: { header: HeaderType }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const userNav: UserNav = {
+    items: [],
+    show_sign_out: true,
+    ...header.user_nav,
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -41,7 +47,11 @@ export function Header({ header }: { header: HeaderType }) {
           {header.show_locale !== false ? (
             <LocaleSelector type="button" />
           ) : null}
-          <SignUser anonymousVariant="avatar" showModal={false} />
+          <SignUser
+            anonymousVariant="avatar"
+            showModal={false}
+            userNav={userNav}
+          />
         </div>
 
         <button
@@ -75,7 +85,11 @@ export function Header({ header }: { header: HeaderType }) {
             {header.show_locale !== false ? (
               <LocaleSelector type="button" />
             ) : null}
-            <SignUser anonymousVariant="avatar" showModal={false} />
+            <SignUser
+              anonymousVariant="avatar"
+              showModal={false}
+              userNav={userNav}
+            />
           </div>
         </div>
       ) : null}

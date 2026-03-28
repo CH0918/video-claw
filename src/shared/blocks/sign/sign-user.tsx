@@ -72,7 +72,13 @@ export function SignUser({
   // get session
   const { data: session, isPending } = useSession();
   const sessionUser = extractSessionUser(session);
-  const displayUser = (user as UserType | null) ?? sessionUser;
+  const displayUser =
+    user || sessionUser
+      ? ({
+          ...(sessionUser ?? {}),
+          ...((user as UserType | null) ?? {}),
+        } as UserType)
+      : null;
 
   // In dev (React StrictMode) effects can run twice; ensure we don't spam getSession().
   const didFallbackSyncRef = useRef(false);
