@@ -1,16 +1,17 @@
+const TIMESTAMP_REGEX =
+  /^\[?((?:\d{1,2}:)?\d{1,2}:\d{1,2})(?:\s*-\s*((?:\d{1,2}:)?\d{1,2}:\d{1,2}))?\]?$/;
 const TIMESTAMP_RANGE_REGEX =
-  /^\[?((?:\d{1,2}:)?\d{1,2}:\d{1,2})-((?:\d{1,2}:)?\d{1,2}:\d{1,2})\]?$/;
+  /^\[?((?:\d{1,2}:)?\d{1,2}:\d{1,2})\s*-\s*((?:\d{1,2}:)?\d{1,2}:\d{1,2})\]?$/;
 
 export function parseTimestamp(timestamp: string): number | null {
-  const match = String(timestamp || '')
-    .trim()
-    .match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})$/);
+  const match = String(timestamp || '').trim().match(TIMESTAMP_REGEX);
 
   if (!match) return null;
 
-  const hours = match[1] ? Number(match[1]) : 0;
-  const minutes = Number(match[2]);
-  const seconds = Number(match[3]);
+  const [, start] = match;
+  const parts = start.split(':').map((item) => Number(item));
+  const [hours = 0, minutes = 0, seconds = 0] =
+    parts.length === 3 ? parts : [0, parts[0], parts[1]];
 
   if (
     !Number.isFinite(hours) ||

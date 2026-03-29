@@ -1,5 +1,10 @@
 import { getAllConfigs } from '@/shared/models/config';
 import {
+  VIDEO_CHAT_DEFAULT_MODEL,
+  VIDEO_SYSTEM_DEFAULT_MODEL,
+} from '@/shared/lib/ai-models';
+import { normalizeEvolinkBaseUrl } from '@/shared/lib/evolink';
+import {
   buildVideoAnalysisPayload,
   createVideoAnalysis,
   findVideoAnalysisById,
@@ -9,16 +14,24 @@ import {
 import {
   TranscriptSegment,
   VideoAnalysisPayload,
+  VideoChatAnswer,
+  VideoChatCitation,
+  VideoChatStreamChunk,
   VideoChatMessage,
 } from '@/shared/types/video-analysis';
 
 import { normalizeTranscript } from '@/shared/lib/video-analysis/transcript';
+import {
+  formatTimestamp,
+  parseTimestamp,
+} from '@/shared/lib/video-analysis/timestamp';
 import { normalizeYouTubeUrl, extractYouTubeVideoId } from '@/shared/lib/video-analysis/youtube';
 
 import {
   getTranscriptProvider,
   getVideoReasoningProvider,
 } from './providers';
+import { getReasoningModel } from './providers/types';
 
 function requireValue(value: string, message: string) {
   if (!value) {
@@ -42,13 +55,39 @@ export async function getVideoAnalysisConfigs() {
       model: configs.video_transcript_model || 'WhisperLargeV3',
     },
     reasoning: {
-      provider: configs.video_reasoning_provider || 'deepseek',
-      baseUrl: configs.video_reasoning_base_url || 'https://api.deepseek.com',
-      apiKey: requireValue(
-        configs.video_reasoning_api_key || '',
-        'video_reasoning_api_key is not set'
-      ),
-      model: configs.video_reasoning_model || 'deepseek-chat',
+      provider: configs.video_reasoning_provider || 'evolink',
+      baseUrl:
+        configs.video_reasoning_provider === 'deepseek'
+          ? configs.video_reasoning_base_url || 'https://api.deepseek.com'
+          : normalizeEvolinkBaseUrl(configs.evolink_base_url),
+      apiKey:
+        configs.video_reasoning_provider === 'deepseek'
+          ? requireValue(
+              configs.video_reasoning_api_key || '',
+              'video_reasoning_api_key is not set'
+            )
+          : requireValue(
+              configs.evolink_api_key || '',
+              'evolink_api_key is not set'
+            ),
+      model:
+        configs.video_reasoning_provider === 'deepseek'
+          ? configs.video_reasoning_model || 'deepseek-chat'
+          : configs.video_reasoning_evolink_model || VIDEO_CHAT_DEFAULT_MODEL,
+      models:
+        configs.video_reasoning_provider === 'deepseek'
+          ? undefined
+          : {
+              default:
+                configs.video_reasoning_evolink_model ||
+                VIDEO_CHAT_DEFAULT_MODEL,
+              chat:
+                configs.video_reasoning_evolink_model ||
+                VIDEO_CHAT_DEFAULT_MODEL,
+              translate: VIDEO_SYSTEM_DEFAULT_MODEL,
+              summary: VIDEO_SYSTEM_DEFAULT_MODEL,
+              topics: VIDEO_SYSTEM_DEFAULT_MODEL,
+            },
     },
   };
 }
@@ -97,6 +136,93 @@ function buildVideoMetadata(
         : undefined,
     language: metadata.language ? String(metadata.language) : undefined,
   };
+}
+
+function normalizeTimestampList(timestamps: string[], limit = 5) {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of timestamps) {
+    const seconds = parseTimestamp(String(value || '').trim());
+    if (seconds === null) continue;
+
+    const timestamp = formatTimestamp(seconds);
+    if (seen.has(timestamp)) continue;
+
+    seen.add(timestamp);
+    normalized.push(timestamp);
+
+    if (normalized.length >= limit) break;
+  }
+
+  return normalized;
+}
+
+function extractInlineTimestamps(text: string, limit = 5) {
+  const matches = String(text || '').match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g) || [];
+  return normalizeTimestampList(matches, limit);
+}
+
+function findClosestSegment(
+  transcript: TranscriptSegment[],
+  targetSeconds: number
+) {
+  if (!transcript.length) return null;
+
+  let closestIndex = 0;
+  let minDiff = Math.abs(transcript[0].start - targetSeconds);
+
+  for (let index = 1; index < transcript.length; index += 1) {
+    const diff = Math.abs(transcript[index].start - targetSeconds);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIndex = index;
+    }
+  }
+
+  const segment = transcript[closestIndex];
+  return {
+    segment,
+    index: closestIndex,
+  };
+}
+
+function buildChatCitations(
+  transcript: TranscriptSegment[],
+  timestamps: string[]
+): VideoChatCitation[] {
+  const citations: VideoChatCitation[] = [];
+
+  for (const timestamp of timestamps) {
+    const seconds = parseTimestamp(timestamp);
+    if (seconds === null) continue;
+
+    const closest = findClosestSegment(transcript, seconds);
+    if (!closest) continue;
+
+    citations.push({
+      timestamp,
+      seconds,
+      start: closest.segment.start,
+      end: closest.segment.start + closest.segment.duration,
+      text: closest.segment.text,
+      segmentIndex: closest.index,
+    });
+  }
+
+  return citations.sort((left, right) => left.seconds - right.seconds);
+}
+
+function normalizeLanguageToLocale(language?: string | null) {
+  const value = String(language || '')
+    .trim()
+    .toLowerCase();
+
+  if (!value) return null;
+  if (value === 'zh' || value.startsWith('zh-')) return 'zh';
+  if (value === 'en' || value.startsWith('en-')) return 'en';
+
+  return null;
 }
 
 export async function startVideoAnalysis(url: string) {
@@ -168,6 +294,67 @@ export async function startVideoAnalysis(url: string) {
   };
 }
 
+export async function translateVideoCaptions(
+  analysisId: string,
+  targetLanguage: string
+) {
+  const record = await findVideoAnalysisById(analysisId);
+  if (!record || record.status !== 'success') {
+    throw new Error('video analysis is not ready');
+  }
+
+  const analysis = buildVideoAnalysisPayload(record);
+  const transcript = normalizeTranscript(analysis.transcript);
+  if (!transcript.length) {
+    return {
+      language: targetLanguage,
+      translations: [] as string[],
+    };
+  }
+
+  const normalizedTarget = normalizeLanguageToLocale(targetLanguage) || targetLanguage;
+  const normalizedSource = normalizeLanguageToLocale(analysis.videoInfo.language);
+  if (normalizedSource && normalizedSource === normalizedTarget) {
+    return {
+      language: normalizedTarget,
+      translations: transcript.map((segment) => segment.text),
+    };
+  }
+
+  const providerConfigs = await getVideoAnalysisConfigs();
+  const reasoningProvider = getVideoReasoningProvider(providerConfigs.reasoning);
+
+  const CHUNK_SIZE = 40;
+  const chunks: Array<{ start: number; texts: string[] }> = [];
+
+  for (let index = 0; index < transcript.length; index += CHUNK_SIZE) {
+    chunks.push({
+      start: index,
+      texts: transcript.slice(index, index + CHUNK_SIZE).map((segment) => segment.text),
+    });
+  }
+
+  const translations: string[] = new Array(transcript.length);
+
+  for (const chunk of chunks) {
+    const translatedChunk = await reasoningProvider.translateTexts({
+      texts: chunk.texts,
+      targetLanguage: normalizedTarget,
+      sourceLanguage: analysis.videoInfo.language,
+      videoInfo: analysis.videoInfo,
+    });
+
+    translatedChunk.forEach((text, offset) => {
+      translations[chunk.start + offset] = text;
+    });
+  }
+
+  return {
+    language: normalizedTarget,
+    translations: translations.map((text, index) => text || transcript[index]?.text || ''),
+  };
+}
+
 async function runReasoningForTranscript(
   transcript: TranscriptSegment[],
   videoInfo: ReturnType<typeof buildVideoMetadata>
@@ -188,7 +375,7 @@ async function runReasoningForTranscript(
 
   return {
     providerName: providerConfigs.reasoning.provider,
-    providerModel: providerConfigs.reasoning.model,
+    providerModel: getReasoningModel(providerConfigs.reasoning, 'summary'),
     topics,
     summary,
   };
@@ -318,8 +505,9 @@ export async function generateThemeTopics(analysisId: string, theme: string) {
 
 export async function answerVideoQuestion(
   analysisId: string,
-  messages: VideoChatMessage[]
-) {
+  messages: VideoChatMessage[],
+  model?: string
+): Promise<VideoChatAnswer> {
   const record = await findVideoAnalysisById(analysisId);
   if (!record || record.status !== 'success') {
     throw new Error('analysis is not ready');
@@ -329,11 +517,83 @@ export async function answerVideoQuestion(
   const providerConfigs = await getVideoAnalysisConfigs();
   const reasoningProvider = getVideoReasoningProvider(providerConfigs.reasoning);
 
-  return reasoningProvider.answerQuestion({
+  const response = await reasoningProvider.answerQuestion({
     transcript,
     videoInfo: buildVideoAnalysisPayload(record).videoInfo,
     messages,
+    model,
   });
+
+  const answer = String(response.answer || '').trim();
+  const timestamps = normalizeTimestampList(
+    response.timestamps?.length ? response.timestamps : extractInlineTimestamps(answer)
+  );
+
+  return {
+    answer,
+    timestamps,
+    citations: buildChatCitations(transcript, timestamps),
+  };
+}
+
+export async function* streamVideoQuestionAnswer(
+  analysisId: string,
+  messages: VideoChatMessage[],
+  model?: string
+): AsyncGenerator<
+  | VideoChatStreamChunk
+  | (VideoChatStreamChunk & { citations?: VideoChatCitation[] }),
+  void,
+  void
+> {
+  const record = await findVideoAnalysisById(analysisId);
+  if (!record || record.status !== 'success') {
+    throw new Error('analysis is not ready');
+  }
+
+  const transcript = normalizeTranscript(JSON.parse(record.transcript || '[]'));
+  const providerConfigs = await getVideoAnalysisConfigs();
+  const reasoningProvider = getVideoReasoningProvider(providerConfigs.reasoning);
+  const videoInfo = buildVideoAnalysisPayload(record).videoInfo;
+
+  if (reasoningProvider.streamAnswerQuestion) {
+    for await (const chunk of reasoningProvider.streamAnswerQuestion({
+      transcript,
+      videoInfo,
+      messages,
+      model,
+    })) {
+      if (chunk.type === 'delta') {
+        yield chunk;
+        continue;
+      }
+
+      const timestamps = normalizeTimestampList(
+        chunk.timestamps?.length ? chunk.timestamps : extractInlineTimestamps(chunk.answer)
+      );
+
+      yield {
+        type: 'done',
+        answer: String(chunk.answer || '').trim(),
+        timestamps,
+        citations: buildChatCitations(transcript, timestamps),
+      };
+    }
+
+    return;
+  }
+
+  const answer = await answerVideoQuestion(analysisId, messages, model);
+  yield {
+    type: 'delta',
+    text: answer.answer,
+  };
+  yield {
+    type: 'done',
+    answer: answer.answer,
+    timestamps: answer.timestamps,
+    citations: answer.citations,
+  };
 }
 
 export async function getVideoAnalysisPayload(

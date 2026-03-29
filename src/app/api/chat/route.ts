@@ -3,15 +3,15 @@ import {
   convertToModelMessages,
   createIdGenerator,
   generateId,
-  stepCountIs,
   streamText,
-  TextUIPart,
-  tool,
   UIMessage,
-  validateUIMessages,
 } from 'ai';
-import { z } from 'zod';
 
+import {
+  GENERAL_CHAT_DEFAULT_MODEL,
+  requireSupportedAIModel,
+} from '@/shared/lib/ai-models';
+import { normalizeEvolinkBaseUrl } from '@/shared/lib/evolink';
 import { findChatById } from '@/shared/models/chat';
 import {
   ChatMessageStatus,
@@ -27,18 +27,18 @@ export async function POST(req: Request) {
     const {
       chatId,
       message,
-      model,
+      model: requestedModel,
       webSearch,
       reasoning,
     }: {
       chatId: string;
       message: UIMessage;
-      model: string;
+      model?: string;
       webSearch: boolean;
       reasoning?: boolean;
     } = await req.json();
 
-    if (!chatId || !model) {
+    if (!chatId) {
       throw new Error('invalid params');
     }
 
@@ -63,12 +63,16 @@ export async function POST(req: Request) {
     }
 
     const configs = await getAllConfigs();
-    const openrouterApiKey = configs.openrouter_api_key;
-    if (!openrouterApiKey) {
-      throw new Error('openrouter_api_key is not set');
+    const evolinkApiKey = configs.evolink_api_key;
+    if (!evolinkApiKey) {
+      throw new Error('evolink_api_key is not set');
     }
 
-    const openrouterBaseUrl = configs.openrouter_base_url;
+    const model = requireSupportedAIModel(
+      requestedModel,
+      GENERAL_CHAT_DEFAULT_MODEL
+    );
+    const evolinkBaseUrl = normalizeEvolinkBaseUrl(configs.evolink_base_url);
 
     const currentTime = new Date();
 
@@ -78,7 +82,7 @@ export async function POST(req: Request) {
       reasoning,
     };
 
-    const provider = 'openrouter';
+    const provider = 'evolink';
 
     // save user message to database
     const userMessage: NewChatMessage = {
@@ -97,8 +101,8 @@ export async function POST(req: Request) {
     await createChatMessage(userMessage);
 
     const openrouter = createOpenRouter({
-      apiKey: openrouterApiKey,
-      baseURL: openrouterBaseUrl ? openrouterBaseUrl : undefined,
+      apiKey: evolinkApiKey,
+      baseURL: evolinkBaseUrl,
     });
 
     // load previous messages from database

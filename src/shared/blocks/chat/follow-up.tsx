@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 
 import { PromptInputMessage } from '@/shared/components/ai-elements/prompt-input';
 import { useChatContext } from '@/shared/contexts/chat';
+import { GENERAL_CHAT_DEFAULT_MODEL } from '@/shared/lib/ai-models';
 
 import { ChatInput } from './input';
 
@@ -145,5 +146,11 @@ export function FollowUp({
     return null;
   }
 
-  return <ChatInput handleSubmit={submitMessage} status={status} />;
+  return (
+    <ChatInput
+      handleSubmit={submitMessage}
+      status={status}
+      initialModel={chat.model || GENERAL_CHAT_DEFAULT_MODEL}
+    />
+  );
 }

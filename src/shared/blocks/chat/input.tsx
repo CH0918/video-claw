@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UIMessage, UseChatHelpers } from '@ai-sdk/react';
 import { BrainCircuitIcon, GlobeIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  GENERAL_CHAT_DEFAULT_MODEL,
+  getSupportedAIModel,
+  SUPPORTED_AI_MODELS,
+} from '@/shared/lib/ai-models';
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -34,14 +39,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
-import { useChatContext } from '@/shared/contexts/chat';
-import { ChatModel } from '@/shared/types/chat';
 
 export function ChatInput({
   handleSubmit,
   status,
   error,
   onInputChange,
+  initialModel = GENERAL_CHAT_DEFAULT_MODEL,
 }: {
   handleSubmit: (
     message: PromptInputMessage,
@@ -50,35 +54,25 @@ export function ChatInput({
   status?: UseChatHelpers<UIMessage>['status'];
   error?: string | null;
   onInputChange?: (value: string) => void;
+  initialModel?: string;
 }) {
   const t = useTranslations('ai.chat.generator');
+  const normalizedInitialModel =
+    getSupportedAIModel(initialModel)?.id || GENERAL_CHAT_DEFAULT_MODEL;
 
-  // todo: get models from api
-  const models: ChatModel[] = [
-    {
-      title: 'Kimi K2 Thinking',
-      name: 'moonshotai/kimi-k2-thinking',
-    },
-    {
-      title: 'Deepseek R1',
-      name: 'deepseek/deepseek-r1',
-    },
-    {
-      title: 'GPT-5',
-      name: 'openai/gpt-5',
-    },
-    {
-      title: 'Claude 4.5 Sonnet',
-      name: 'anthropic/claude-4.5-sonnet',
-    },
-  ];
-
-  const [model, setModel] = useState<string>(models[0].name);
+  const [model, setModel] = useState<string>(normalizedInitialModel);
   const [input, setInput] = useState('');
   const [webSearch, setWebSearch] = useState(false);
   const [reasoning, setReasoning] = useState(false);
   const selectedModelLabel =
-    models.find((item) => item.name === model)?.title ?? models[0]?.title ?? '';
+    getSupportedAIModel(model)?.title ||
+    getSupportedAIModel(normalizedInitialModel)?.title ||
+    SUPPORTED_AI_MODELS[0]?.title ||
+    '';
+
+  useEffect(() => {
+    setModel(normalizedInitialModel);
+  }, [normalizedInitialModel]);
 
   return (
     <div className="w-full">
@@ -158,9 +152,12 @@ export function ChatInput({
                 </PromptInputSelectValue>
               </PromptInputSelectTrigger>
               <PromptInputSelectContent>
-                {models.map((model) => (
-                  <PromptInputSelectItem key={model.name} value={model.name}>
-                    {model.title}
+                {SUPPORTED_AI_MODELS.map((modelOption) => (
+                  <PromptInputSelectItem
+                    key={modelOption.id}
+                    value={modelOption.id}
+                  >
+                    {modelOption.title}
                   </PromptInputSelectItem>
                 ))}
               </PromptInputSelectContent>

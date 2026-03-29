@@ -1,16 +1,19 @@
 import {
-  buildVideoInfoBlock,
-  formatTranscriptForPrompt,
-  hydrateTopicCandidates,
-  normalizeSummary,
-  normalizeTopicCandidates,
-} from '@/shared/lib/video-analysis/topic-utils';
-import {
   TranscriptSegment,
   VideoChatMessage,
   VideoInfo,
 } from '@/shared/types/video-analysis';
 
+import {
+  buildChatPrompt,
+  buildSummaryPrompt,
+  buildTopicPrompt,
+  buildTranslatePrompt,
+  parseChatResponse,
+  parseSummaryResponse,
+  parseTopicCandidates,
+  parseTranslateResponse,
+} from './shared';
 import {
   ReasoningProviderConfig,
   VideoReasoningProvider,
@@ -18,30 +21,6 @@ import {
 
 function normalizeBaseUrl(baseUrl: string) {
   return (baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '');
-}
-
-function stripCodeFence(text: string) {
-  return text
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/i, '')
-    .trim();
-}
-
-function safeJsonParse<T>(text: string, fallback: T) {
-  const cleaned = stripCodeFence(text);
-
-  try {
-    return JSON.parse(cleaned) as T;
-  } catch {
-    const match = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if (!match) return fallback;
-
-    try {
-      return JSON.parse(match[1]) as T;
-    } catch {
-      return fallback;
-    }
-  }
 }
 
 async function callDeepseek(
@@ -80,77 +59,44 @@ async function callDeepseek(
   return String(payload?.choices?.[0]?.message?.content || '').trim();
 }
 
-function buildTopicPrompt(
-  transcript: TranscriptSegment[],
-  videoInfo: Partial<VideoInfo>,
-  theme?: string,
-  maxTopics = 4
-) {
-  const themeLine = theme
-    ? `Only extract highlights directly related to this theme: "${theme}".`
-    : 'Extract the most important highlights from the video.';
-
-  return [
-    `You are analyzing a YouTube transcript.`,
-    themeLine,
-    `Return strict JSON object with shape {"topics":[...]} and at most ${maxTopics} topic items.`,
-    `Each topic item must be: {"title":"short label","quote":{"timestamp":"[MM:SS-MM:SS]","text":"exact transcript quote"}}.`,
-    `Use timestamps and quote text that exist in the transcript. Do not paraphrase the quote.`,
-    buildVideoInfoBlock(videoInfo),
-    '<transcript>',
-    formatTranscriptForPrompt(transcript, Math.min(transcript.length, 240)),
-    '</transcript>',
-  ].join('\n');
-}
-
-function buildSummaryPrompt(
-  transcript: TranscriptSegment[],
-  videoInfo: Partial<VideoInfo>
-) {
-  return [
-    `You summarize a YouTube transcript into concise takeaways.`,
-    `Return strict JSON object with shape {"overview":"string","points":[{"title":"string","text":"string","timestamp":"MM:SS"}]}.`,
-    `Points should be specific, grounded in the transcript, and include timestamps.`,
-    buildVideoInfoBlock(videoInfo),
-    '<transcript>',
-    formatTranscriptForPrompt(transcript, Math.min(transcript.length, 260)),
-    '</transcript>',
-  ].join('\n');
-}
-
-function buildChatPrompt(
-  transcript: TranscriptSegment[],
-  videoInfo: Partial<VideoInfo>,
-  messages: VideoChatMessage[]
-) {
-  return [
-    {
-      role: 'system' as const,
-      content: [
-        'You answer questions about a YouTube transcript.',
-        'Every answer must stay grounded in the transcript.',
-        'Include inline timestamps like [MM:SS] whenever you reference a fact.',
-        'If the transcript does not support an answer, say so directly.',
-        buildVideoInfoBlock(videoInfo),
-        '<transcript>',
-        formatTranscriptForPrompt(transcript, Math.min(transcript.length, 320)),
-        '</transcript>',
-      ].join('\n'),
-    },
-    ...messages.map((message) => ({
-      role:
-        message.role === 'system'
-          ? ('assistant' as const)
-          : (message.role as 'assistant' | 'user'),
-      content: message.content,
-    })),
-  ];
-}
-
 export class DeepseekReasoningProvider implements VideoReasoningProvider {
   name = 'deepseek';
 
   constructor(private readonly config: ReasoningProviderConfig) {}
+
+  async translateTexts(input: {
+    texts: string[];
+    targetLanguage: string;
+    sourceLanguage?: string;
+    videoInfo?: Partial<VideoInfo>;
+  }) {
+    if (!input.texts.length) {
+      return [];
+    }
+
+    const content = await callDeepseek(
+      this.config,
+      [
+        {
+          role: 'system',
+          content:
+            'Return strict JSON only. Do not wrap JSON in markdown fences.',
+        },
+        {
+          role: 'user',
+          content: buildTranslatePrompt(
+            input.texts,
+            input.targetLanguage,
+            input.sourceLanguage,
+            input.videoInfo
+          ),
+        },
+      ],
+      { responseFormat: { type: 'json_object' }, temperature: 0.1 }
+    );
+
+    return parseTranslateResponse(content, input.texts);
+  }
 
   async generateTopics(input: {
     transcript: TranscriptSegment[];
@@ -179,16 +125,10 @@ export class DeepseekReasoningProvider implements VideoReasoningProvider {
       { responseFormat: { type: 'json_object' } }
     );
 
-    const parsed = safeJsonParse<any>(content, []);
-    const rawCandidates = Array.isArray(parsed) ? parsed : parsed?.items || parsed?.topics || [];
-    return hydrateTopicCandidates(
-      input.transcript,
-      normalizeTopicCandidates(rawCandidates),
-      {
-        maxTopics: input.maxTopics,
-        theme: input.theme,
-      }
-    );
+    return parseTopicCandidates(input.transcript, content, {
+      maxTopics: input.maxTopics,
+      theme: input.theme,
+    });
   }
 
   async generateSummary(input: {
@@ -211,18 +151,21 @@ export class DeepseekReasoningProvider implements VideoReasoningProvider {
       { responseFormat: { type: 'json_object' } }
     );
 
-    return normalizeSummary(safeJsonParse(content, {}));
+    return parseSummaryResponse(content);
   }
 
   async answerQuestion(input: {
     transcript: TranscriptSegment[];
     videoInfo: Partial<VideoInfo>;
     messages: VideoChatMessage[];
+    model?: string;
   }) {
-    return callDeepseek(this.config, buildChatPrompt(
-      input.transcript,
-      input.videoInfo,
-      input.messages
-    ));
+    const content = await callDeepseek(
+      this.config,
+      buildChatPrompt(input.transcript, input.videoInfo, input.messages),
+      { responseFormat: { type: 'json_object' } }
+    );
+
+    return parseChatResponse(content);
   }
 }

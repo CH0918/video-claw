@@ -11,6 +11,7 @@
     "r2": "Cloudflare R2",
     "s3": "AWS S3",
     "openrouter": "OpenRouter",
+    "evolink": "Evolink",
     "replicate": "Replicate",
     "fal": "Fal",
     "video_transcript": "Video Transcript",

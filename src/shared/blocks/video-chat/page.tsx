@@ -1,40 +1,49 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Space_Grotesk } from 'next/font/google';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowDown,
   ArrowRight,
   ArrowUp,
   Captions,
-  Check,
   ChevronDown,
   Clipboard,
-  Clock3,
   Coins,
   Copy,
   Download,
   Eraser,
   GitBranch,
-  Globe,
   Languages,
-  Lightbulb,
   List,
+  LoaderCircle,
   MessageSquare,
   NotebookPen,
   Play,
-  Plus,
   Search,
   Share2,
-  X,
-  Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 
-import { ThemeToggler } from '@/shared/blocks/common';
+import { localeNames, locales } from '@/config/locale';
+import { LocaleSelector, ThemeToggler } from '@/shared/blocks/common';
 import { Button } from '@/shared/components/ui/button';
+import { ClaudeCodeLoading } from '@/shared/components/ui/claude-code-loading';
 import { Input } from '@/shared/components/ui/input';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
+import { Switch } from '@/shared/components/ui/switch';
 import {
   Tabs,
   TabsContent,
@@ -42,15 +51,25 @@ import {
   TabsTrigger,
 } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { exportTranscript } from '@/shared/lib/video-analysis/transcript';
-import { formatTimestamp } from '@/shared/lib/video-analysis/timestamp';
-import { buildYouTubeEmbedUrl } from '@/shared/lib/video-analysis/youtube';
+import { useAppContext } from '@/shared/contexts/app';
+import {
+  SUPPORTED_AI_MODELS,
+  SupportedAIModelId,
+  VIDEO_CHAT_DEFAULT_MODEL,
+} from '@/shared/lib/ai-models';
 import { cn } from '@/shared/lib/utils';
 import {
-  TopicRange,
+  formatTimestamp,
+  parseTimestamp,
+} from '@/shared/lib/video-analysis/timestamp';
+import { exportTranscript } from '@/shared/lib/video-analysis/transcript';
+import { buildYouTubeEmbedUrl } from '@/shared/lib/video-analysis/youtube';
+import {
   TranscriptExportFormat,
   TranscriptSegment,
   VideoAnalysisPayload,
+  VideoChatAnswer,
+  VideoChatCitation,
 } from '@/shared/types/video-analysis';
 
 const spaceGrotesk = Space_Grotesk({
@@ -58,79 +77,42 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
 });
 
-const copy = {
-  en: {
-    searchPlaceholder: 'Paste a YouTube link to start analyzing...',
-    credits: '128',
-    chat: 'Chat',
-    summary: 'Summary',
-    captions: 'Captions',
-    mindMap: 'Mind Map',
-    notes: 'Notes',
-    copySubtitles: 'Copy subtitles',
-    downloadSubtitles: 'Download subtitles',
-    highlightInputPlaceholder: 'Topic?',
-    prompts: ['Key Points', 'Outline', 'Key Questions'],
-    askPlaceholder: 'Ask anything about this video...',
-    summaryHeading: 'Auto Summary',
-    summaryEmpty: 'Analysis is not ready yet.',
-    summaryLoading: 'Generating a transcript-grounded summary...',
-    mindMapHeading: 'Conversation Graph',
-    mindMapBody: 'Mind Map is reserved and will be added later.',
-    notesHeading: 'Saved Notes',
-    notesBody: 'Notes stays as a placeholder in this version.',
-    jump: 'Jump',
-    analyzing: 'Analyzing',
-    processing: 'Processing transcript',
-    thinking: 'Building topics and summary',
-    analyze: 'Analyze',
-    exportPrompt: 'Click OK to export SRT. Click Cancel to export TXT.',
-    authLanguage: 'Original',
-    emptyHighlights: 'No highlights yet. Enter a topic to generate time ranges.',
-    emptyCaptions: 'Captions will appear after transcript generation completes.',
-    emptyChat:
-      'Once the transcript is ready, you can ask grounded questions about this video.',
-    sendFailed: 'Chat failed. Please try again.',
-    topicFailed: 'Topic generation failed. Please try again.',
-    analysisFailed: 'Video analysis failed.',
-  },
-  zh: {
-    searchPlaceholder: '粘贴 YouTube 链接，开始分析...',
-    credits: '128',
-    chat: '对话',
-    summary: '摘要',
-    captions: '字幕',
-    mindMap: '脑图',
-    notes: '笔记',
-    copySubtitles: '复制字幕',
-    downloadSubtitles: '下载字幕',
-    highlightInputPlaceholder: '主题?',
-    prompts: ['关键点', '大纲', '关键问题'],
-    askPlaceholder: '继续围绕这个视频提问...',
-    summaryHeading: '自动摘要',
-    summaryEmpty: '分析结果尚未生成。',
-    summaryLoading: '正在生成基于字幕的摘要...',
-    mindMapHeading: '内容关系图',
-    mindMapBody: 'Mind Map 功能保留，后续补上。',
-    notesHeading: '保存笔记',
-    notesBody: 'Notes 功能在这一版继续保留占位。',
-    jump: '跳转',
-    analyzing: '分析中',
-    processing: '正在生成字幕',
-    thinking: '正在整理主题与摘要',
-    analyze: '分析',
-    exportPrompt: '点击“确定”导出 SRT，点击“取消”导出 TXT。',
-    authLanguage: '原始字幕',
-    emptyHighlights: '暂无高亮结果，可输入主题生成对应时间范围。',
-    emptyCaptions: '字幕生成完成后会展示在这里。',
-    emptyChat: '字幕就绪后，你可以基于视频内容继续提问。',
-    sendFailed: '对话失败，请稍后重试。',
-    topicFailed: '主题定位失败，请稍后重试。',
-    analysisFailed: '视频分析失败。',
-  },
+type VideoChatCopy = {
+  analyze: string;
+  askPlaceholder: string;
+  authLanguage: string;
+  bilingualCaptions: string;
+  captions: string;
+  chat: string;
+  chatStreaming: string;
+  copyReply: string;
+  copyReplyFailed: string;
+  copyReplySuccess: string;
+  copySubtitles: string;
+  credits: string;
+  downloadSubtitles: string;
+  emptyCaptions: string;
+  emptyChat: string;
+  exportPrompt: string;
+  jumpToCurrentSubtitle: string;
+  modelLabel: string;
+  mindMap: string;
+  mindMapBody: string;
+  mindMapHeading: string;
+  notes: string;
+  notesBody: string;
+  notesHeading: string;
+  prompts: string[];
+  searchPlaceholder: string;
+  sendFailed: string;
+  summary: string;
+  summaryEmpty: string;
+  summaryHeading: string;
+  summaryLoading: string;
+  analysisFailed: string;
+  translatingCaptions: string;
+  translationFailed: string;
 };
-
-type VideoChatCopy = typeof copy.en;
 
 type VideoChatPageProps = {
   locale: string;
@@ -140,13 +122,49 @@ type VideoChatPageProps = {
 type Message = {
   role: 'assistant' | 'user';
   text: string;
+  timestamps?: string[];
+  citations?: VideoChatCitation[];
+  isStreaming?: boolean;
 };
 
 type SubtitleItem = {
   timestamp: string;
   text: string;
-  active?: boolean;
+  start: number;
+  originalText: string;
+  translatedText?: string;
 };
+
+type YouTubePlayer = {
+  destroy: () => void;
+  getCurrentTime: () => number;
+  playVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+};
+
+type YouTubeNamespace = {
+  Player: new (
+    element: HTMLIFrameElement,
+    options?: {
+      events?: {
+        onReady?: () => void;
+        onStateChange?: (event: { data: number }) => void;
+      };
+    }
+  ) => YouTubePlayer;
+  PlayerState: {
+    PLAYING: number;
+  };
+};
+
+declare global {
+  interface Window {
+    YT?: YouTubeNamespace;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+let youtubeIframeApiPromise: Promise<YouTubeNamespace> | null = null;
 
 type ApiEnvelope<T> = {
   code: number;
@@ -171,6 +189,98 @@ async function postJson<T>(url: string, body: Record<string, unknown>) {
   return payload.data as T;
 }
 
+async function readSseStream(
+  response: Response,
+  onEvent: (payload: any) => void
+) {
+  if (!response.body) {
+    throw new Error('empty stream response');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), {
+      stream: !done,
+    });
+
+    const events = buffer.split('\n\n');
+    buffer = events.pop() || '';
+
+    for (const event of events) {
+      const lines = event
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      for (const line of lines) {
+        if (!line.startsWith('data:')) {
+          continue;
+        }
+
+        const data = line.slice(5).trim();
+        if (!data) {
+          continue;
+        }
+
+        onEvent(JSON.parse(data));
+      }
+    }
+
+    if (done) {
+      break;
+    }
+  }
+}
+
+function loadYouTubeIframeApi() {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('YouTube iframe API requires a browser'));
+  }
+
+  if (window.YT?.Player) {
+    return Promise.resolve(window.YT);
+  }
+
+  if (youtubeIframeApiPromise) {
+    return youtubeIframeApiPromise;
+  }
+
+  youtubeIframeApiPromise = new Promise<YouTubeNamespace>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    );
+    const previousReady = window.onYouTubeIframeAPIReady;
+
+    window.onYouTubeIframeAPIReady = () => {
+      previousReady?.();
+
+      if (window.YT?.Player) {
+        resolve(window.YT);
+        return;
+      }
+
+      reject(new Error('YouTube iframe API did not initialize correctly'));
+    };
+
+    if (existingScript) {
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://www.youtube.com/iframe_api';
+    script.async = true;
+    script.onerror = () =>
+      reject(new Error('Failed to load YouTube iframe API'));
+    document.head.appendChild(script);
+  });
+
+  return youtubeIframeApiPromise;
+}
+
 function slugify(value: string) {
   return String(value || 'video')
     .toLowerCase()
@@ -180,38 +290,156 @@ function slugify(value: string) {
 
 function buildAssistantIntro(
   analysis: VideoAnalysisPayload,
-  locale: string
+  locale: string,
+  userName?: string | null
 ): Message {
   const overview = analysis.summary.overview?.trim();
   const points = analysis.summary.points
     .slice(0, 4)
     .map((point, index) => {
       const prefix = point.timestamp ? `[${point.timestamp}] ` : '';
-      return `${index + 1}. ${prefix}${point.title || point.text}`;
+      return `${index + 1}. ${prefix}${point.title || point.text}`.trim();
     })
     .join('\n');
+  const normalizedLocale = normalizeLocaleLanguage(locale) || 'en';
+  const safeUserName = String(userName || '').trim();
+  const displayName =
+    safeUserName || (normalizedLocale === 'zh' ? '朋友' : 'there');
+
+  const sections =
+    normalizedLocale === 'zh'
+      ? [
+          `Hi，${displayName}，这个视频的内容总结如下：`,
+          `${overview || '我先帮你提炼了这段视频最核心的内容。'}`,
+          points ? `**你可以先看这几个重点：**\n${points}` : '',
+          '如果你对视频里任何部分有疑问，欢迎继续和我讨论。',
+        ]
+      : [
+          `Hi, ${displayName}, here's a polished summary of this video:`,
+          ` ${overview || `I've pulled together the most important points for you.`}`,
+          points ? `**Here are the key takeaways:**\n${points}` : '',
+          `If anything in the video is unclear, feel free to ask and we can go through it together.`,
+        ];
 
   return {
     role: 'assistant',
-    text:
-      locale === 'zh'
-        ? `我已经读完这段视频字幕。${overview ? `\n\n${overview}` : ''}${points ? `\n\n${points}` : ''}`
-        : `I have analyzed the transcript.${overview ? `\n\n${overview}` : ''}${points ? `\n\n${points}` : ''}`,
+    text: sections.filter(Boolean).join('\n'),
   };
 }
 
 function getSubtitleItems(
   transcript: TranscriptSegment[],
-  activeStart?: number
+  translatedTexts?: string[]
 ): SubtitleItem[] {
-  return transcript.map((segment) => ({
+  return transcript.map((segment, index) => ({
     timestamp: formatTimestamp(segment.start),
-    text: segment.text,
-    active:
-      typeof activeStart === 'number'
-        ? Math.abs(segment.start - activeStart) < 0.5
-        : false,
+    text: translatedTexts?.[index] || segment.text,
+    start: segment.start,
+    originalText: segment.text,
+    translatedText: translatedTexts?.[index],
   }));
+}
+
+function findActiveSubtitleIndex(
+  transcript: TranscriptSegment[],
+  currentTime: number
+) {
+  if (!transcript.length) return -1;
+
+  for (let index = 0; index < transcript.length; index += 1) {
+    const segment = transcript[index];
+    const nextStart = transcript[index + 1]?.start;
+    const segmentEnd =
+      typeof nextStart === 'number' && nextStart > segment.start
+        ? nextStart
+        : segment.start + Math.max(segment.duration, 0.25);
+
+    if (currentTime >= segment.start && currentTime < segmentEnd) {
+      return index;
+    }
+  }
+
+  if (currentTime < transcript[0].start) {
+    return 0;
+  }
+
+  return transcript.length - 1;
+}
+
+function normalizeLocaleLanguage(value?: string | null) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return null;
+  if (normalized === 'zh' || normalized.startsWith('zh-')) return 'zh';
+  if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+
+  return null;
+}
+
+function getDefaultSubtitleLanguage(
+  locale: string,
+  analysis?: VideoAnalysisPayload | null
+) {
+  return (
+    normalizeLocaleLanguage(analysis?.videoInfo.language) ||
+    normalizeLocaleLanguage(locale) ||
+    'en'
+  );
+}
+
+function getSubtitleCacheKey(analysisId: string, language: string) {
+  return `${analysisId}:${normalizeLocaleLanguage(language) || language}`;
+}
+
+function parseSummaryTimestamp(value?: string | null) {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return null;
+
+  const direct = parseTimestamp(rawValue);
+  if (direct !== null) {
+    return {
+      label: formatTimestamp(direct),
+      seconds: direct,
+    };
+  }
+
+  const firstMatch = rawValue.match(/\d{1,2}:\d{2}(?::\d{2})?/);
+  if (!firstMatch) return null;
+
+  const seconds = parseTimestamp(firstMatch[0]);
+  if (seconds === null) return null;
+
+  return {
+    label: firstMatch[0],
+    seconds,
+  };
+}
+
+function parseChatTimestampReference(value: string) {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return null;
+
+  const match = rawValue.match(
+    /^\[?((?:\d{1,2}:)?\d{1,2}:\d{1,2})(?:\s*-\s*((?:\d{1,2}:)?\d{1,2}:\d{1,2}))?\]?$/
+  );
+
+  if (!match) return null;
+
+  const startSeconds = parseTimestamp(match[1]);
+  if (startSeconds === null) return null;
+
+  const endSeconds = match[2] ? parseTimestamp(match[2]) : null;
+
+  return {
+    normalized: formatTimestamp(startSeconds),
+    seconds: startSeconds,
+    label:
+      endSeconds === null
+        ? formatTimestamp(startSeconds)
+        : `${formatTimestamp(startSeconds)}-${formatTimestamp(endSeconds)}`,
+  };
 }
 
 function downloadFile(filename: string, content: string, mimeType: string) {
@@ -224,11 +452,58 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(objectUrl);
 }
 
+function buildVideoChatCopy(
+  t: ReturnType<typeof useTranslations<'pages.video.chat'>>
+): VideoChatCopy {
+  return {
+    analyze: t('analyze'),
+    askPlaceholder: t('askPlaceholder'),
+    authLanguage: t('authLanguage'),
+    bilingualCaptions: t('bilingualCaptions'),
+    captions: t('captions'),
+    chat: t('chat'),
+    chatStreaming: t('chatStreaming'),
+    copyReply: t('copyReply'),
+    copyReplyFailed: t('copyReplyFailed'),
+    copyReplySuccess: t('copyReplySuccess'),
+    copySubtitles: t('copySubtitles'),
+    credits: t('credits'),
+    downloadSubtitles: t('downloadSubtitles'),
+    emptyCaptions: t('emptyCaptions'),
+    emptyChat: t('emptyChat'),
+    exportPrompt: t('exportPrompt'),
+    jumpToCurrentSubtitle: t('jumpToCurrentSubtitle'),
+    modelLabel: t('modelLabel'),
+    mindMap: t('mindMap'),
+    mindMapBody: t('mindMapBody'),
+    mindMapHeading: t('mindMapHeading'),
+    notes: t('notes'),
+    notesBody: t('notesBody'),
+    notesHeading: t('notesHeading'),
+    prompts: t.raw('prompts') as string[],
+    searchPlaceholder: t('searchPlaceholder'),
+    sendFailed: t('sendFailed'),
+    summary: t('summary'),
+    summaryEmpty: t('summaryEmpty'),
+    summaryHeading: t('summaryHeading'),
+    summaryLoading: t('summaryLoading'),
+    analysisFailed: t('analysisFailed'),
+    translatingCaptions: t('translatingCaptions'),
+    translationFailed: t('translationFailed'),
+  };
+}
+
 export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
-  const content = locale === 'zh' ? copy.zh : copy.en;
+  const t = useTranslations('pages.video.chat');
+  const content = useMemo(() => buildVideoChatCopy(t), [t]);
+  const { user } = useAppContext();
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const hasBootstrappedRef = useRef(false);
+  const playerRef = useRef<YouTubePlayer | null>(null);
+  const playbackPollingRef = useRef<number | null>(null);
+  const chatAutoScrollLockRef = useRef(false);
 
   const [inputUrl, setInputUrl] = useState(initialUrl || '');
   const [analysisState, setAnalysisState] = useState<
@@ -237,28 +512,57 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const [analysisId, setAnalysisId] = useState('');
   const [analysis, setAnalysis] = useState<VideoAnalysisPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [selectedHighlightTopic, setSelectedHighlightTopic] = useState('');
-  const [activeHighlightStart, setActiveHighlightStart] = useState<number>(0);
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState<number>(0);
   const [chatInput, setChatInput] = useState('');
-  const [chatInputMode, setChatInputMode] = useState('auto');
+  const [selectedSkill, setSelectedSkill] = useState('');
+  const [chatModel, setChatModel] = useState(VIDEO_CHAT_DEFAULT_MODEL);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [customHighlightDraft, setCustomHighlightDraft] = useState('');
-  const [customTopics, setCustomTopics] = useState<TopicRange[]>([]);
-  const [isCustomHighlightEditing, setIsCustomHighlightEditing] =
-    useState(false);
-
-  const allTopics = useMemo(
-    () => [...customTopics, ...(analysis?.topics || [])],
-    [analysis?.topics, customTopics]
+  const [isChatAutoFollowEnabled, setIsChatAutoFollowEnabled] = useState(true);
+  const [subtitleLanguage, setSubtitleLanguage] = useState(() =>
+    getDefaultSubtitleLanguage(locale)
   );
-  const activeHighlight =
-    allTopics.find((topic) => topic.id === selectedHighlightTopic) ||
-    allTopics[0] ||
-    null;
-  const displayedSubtitleItems = useMemo(
-    () => getSubtitleItems(analysis?.transcript || [], activeHighlightStart),
-    [analysis?.transcript, activeHighlightStart]
+  const [isBilingualCaptions, setIsBilingualCaptions] = useState(false);
+  const [translatedSubtitleCache, setTranslatedSubtitleCache] = useState<
+    Record<string, string[]>
+  >({});
+  const [isSubtitleTranslating, setIsSubtitleTranslating] = useState(false);
+  const sourceSubtitleLanguage = normalizeLocaleLanguage(
+    analysis?.videoInfo.language
+  );
+  const translatedSubtitleTexts = analysisId
+    ? translatedSubtitleCache[getSubtitleCacheKey(analysisId, subtitleLanguage)]
+    : undefined;
+  const deferredPlaybackTime = useDeferredValue(currentPlaybackTime);
+  const subtitleItems = useMemo(
+    () => getSubtitleItems(analysis?.transcript || [], translatedSubtitleTexts),
+    [analysis?.transcript, translatedSubtitleTexts]
+  );
+  const activeSubtitleIndex = useMemo(
+    () =>
+      findActiveSubtitleIndex(analysis?.transcript || [], deferredPlaybackTime),
+    [analysis?.transcript, deferredPlaybackTime]
+  );
+  const videoEmbedUrl = analysis?.videoInfo.videoId
+    ? buildYouTubeEmbedUrl(analysis.videoInfo.videoId)
+    : null;
+  const subtitleLanguages = useMemo(
+    () =>
+      locales.map((value) => ({
+        value,
+        label: localeNames[value],
+      })),
+    []
+  );
+  const chatInputPlaceholder =
+    locale === 'zh'
+      ? `${content.askPlaceholder}（Enter 发送，Shift+Enter 换行）`
+      : `${content.askPlaceholder} (Enter to send, Shift+Enter for a new line)`;
+  const isAnalyzing =
+    analysisState === 'submitting' || analysisState === 'polling';
+  const chatExportText = useMemo(
+    () => chatMessages.map((message) => message.text).join('\n\n'),
+    [chatMessages]
   );
 
   useEffect(() => {
@@ -269,19 +573,138 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
   useEffect(() => {
     if (!analysis) {
-      setCustomTopics([]);
-      setSelectedHighlightTopic('');
-      setActiveHighlightStart(0);
+      setCurrentPlaybackTime(0);
       setChatMessages([]);
+      setChatModel(VIDEO_CHAT_DEFAULT_MODEL);
+      setIsChatAutoFollowEnabled(true);
+      setTranslatedSubtitleCache({});
       return;
     }
 
-    const firstTopic = analysis.topics[0];
-    const firstSegment = firstTopic?.segments[0];
-    setSelectedHighlightTopic(firstTopic?.id || '');
-    setActiveHighlightStart(firstSegment?.start || 0);
-    setChatMessages([buildAssistantIntro(analysis, locale)]);
-  }, [analysis, locale]);
+    setCurrentPlaybackTime(analysis.transcript[0]?.start || 0);
+    setChatMessages([buildAssistantIntro(analysis, locale, user?.name)]);
+    setChatModel(VIDEO_CHAT_DEFAULT_MODEL);
+    setIsChatAutoFollowEnabled(true);
+  }, [analysis, locale, user?.name]);
+
+  useEffect(() => {
+    setSubtitleLanguage(getDefaultSubtitleLanguage(locale));
+  }, [locale]);
+
+  useEffect(() => {
+    const viewport = chatScrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport) return;
+
+    const isNearBottom = () =>
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 32;
+
+    const handleScroll = () => {
+      if (chatAutoScrollLockRef.current) return;
+      setIsChatAutoFollowEnabled(isNearBottom());
+    };
+
+    handleScroll();
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const viewport = chatScrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport || !isChatAutoFollowEnabled) return;
+
+    chatAutoScrollLockRef.current = true;
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: 'auto',
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      chatAutoScrollLockRef.current = false;
+    }, 80);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [chatMessages, isChatAutoFollowEnabled]);
+
+  useEffect(() => {
+    function stopPlaybackPolling() {
+      if (playbackPollingRef.current !== null) {
+        window.clearInterval(playbackPollingRef.current);
+        playbackPollingRef.current = null;
+      }
+    }
+
+    function syncPlaybackTime() {
+      const nextTime = playerRef.current?.getCurrentTime?.();
+      if (typeof nextTime === 'number' && Number.isFinite(nextTime)) {
+        startTransition(() => {
+          setCurrentPlaybackTime(nextTime);
+        });
+      }
+    }
+
+    if (!videoEmbedUrl || !iframeRef.current) {
+      stopPlaybackPolling();
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    stopPlaybackPolling();
+    playerRef.current?.destroy?.();
+    playerRef.current = null;
+
+    void loadYouTubeIframeApi()
+      .then((YT) => {
+        if (cancelled || !iframeRef.current) return;
+
+        const player = new YT.Player(iframeRef.current, {
+          events: {
+            onReady: () => {
+              if (cancelled) return;
+              playerRef.current = player;
+              syncPlaybackTime();
+            },
+            onStateChange: (event) => {
+              if (cancelled) return;
+
+              if (event.data === YT.PlayerState.PLAYING) {
+                stopPlaybackPolling();
+                syncPlaybackTime();
+                playbackPollingRef.current = window.setInterval(
+                  syncPlaybackTime,
+                  250
+                );
+                return;
+              }
+
+              stopPlaybackPolling();
+              syncPlaybackTime();
+            },
+          },
+        });
+
+        playerRef.current = player;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      stopPlaybackPolling();
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+    };
+  }, [videoEmbedUrl]);
 
   useEffect(() => {
     if (!analysisId || analysisState !== 'polling') return;
@@ -303,6 +726,9 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           if (cancelled) return;
 
           if (result.status === 'success' && result.analysis) {
+            setSubtitleLanguage(
+              getDefaultSubtitleLanguage(locale, result.analysis)
+            );
             setAnalysis(result.analysis);
             setAnalysisState('ready');
             setErrorMessage('');
@@ -338,7 +764,6 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
     setErrorMessage('');
     setAnalysis(null);
-    setCustomTopics([]);
     setAnalysisState('submitting');
     setInputUrl(nextUrl);
     router.replace(`/${locale}/video/chat?url=${encodeURIComponent(nextUrl)}`);
@@ -355,6 +780,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       setAnalysisId(result.analysisId);
 
       if (result.status === 'success' && result.analysis) {
+        setSubtitleLanguage(getDefaultSubtitleLanguage(locale, result.analysis));
         setAnalysis(result.analysis);
         setAnalysisState('ready');
         return;
@@ -367,8 +793,14 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     }
   }
 
-  function seekTo(startSeconds: number) {
-    setActiveHighlightStart(startSeconds);
+  const seekTo = useCallback((startSeconds: number) => {
+    setCurrentPlaybackTime(startSeconds);
+
+    if (playerRef.current) {
+      playerRef.current.seekTo(Math.floor(startSeconds), true);
+      playerRef.current.playVideo();
+      return;
+    }
 
     const targetWindow = iframeRef.current?.contentWindow;
     if (!targetWindow) return;
@@ -385,14 +817,16 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
     command('seekTo', [Math.floor(startSeconds), true]);
     command('playVideo', []);
-  }
+  }, []);
 
-  async function handleCopySubtitles() {
+  const handleCopySubtitles = useCallback(async () => {
     if (!analysis?.transcript?.length || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(exportTranscript(analysis.transcript, 'txt'));
-  }
+    await navigator.clipboard.writeText(
+      exportTranscript(analysis.transcript, 'txt')
+    );
+  }, [analysis?.transcript]);
 
-  function handleDownloadSubtitles() {
+  const handleDownloadSubtitles = useCallback(() => {
     if (!analysis?.transcript?.length || typeof window === 'undefined') return;
     const format: TranscriptExportFormat = window.confirm(content.exportPrompt)
       ? 'srt'
@@ -401,9 +835,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     downloadFile(
       `${slugify(analysis.videoInfo.title || analysis.videoInfo.videoId)}.${format}`,
       exportTranscript(analysis.transcript, format),
-      format === 'srt' ? 'application/x-subrip;charset=utf-8' : 'text/plain;charset=utf-8'
+      format === 'srt'
+        ? 'application/x-subrip;charset=utf-8'
+        : 'text/plain;charset=utf-8'
     );
-  }
+  }, [analysis, content.exportPrompt]);
 
   async function handleSendChat(prompt?: string) {
     if (!analysisId || isChatLoading) return;
@@ -413,68 +849,157 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
     const userMessage: Message = { role: 'user', text: nextInput };
     const nextMessages = [...chatMessages, userMessage];
-    setChatMessages(nextMessages);
+    const assistantIndex = nextMessages.length;
+    setChatMessages([
+      ...nextMessages,
+      { role: 'assistant', text: '', isStreaming: true },
+    ]);
     setChatInput('');
     setIsChatLoading(true);
 
     try {
-      const result = await postJson<{ answer: string }>('/api/video/chat', {
-        analysisId,
-        messages: nextMessages.map((message) => ({
-          role: message.role,
-          content: message.text,
-        })),
+      const response = await fetch('/api/video/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisId,
+          model: chatModel,
+          messages: nextMessages.map((message) => ({
+            role: message.role,
+            content: message.text,
+          })),
+        }),
       });
 
-      setChatMessages((current) => [
-        ...current,
-        { role: 'assistant', text: result.answer },
-      ]);
-    } catch {
-      setChatMessages((current) => [
-        ...current,
-        { role: 'assistant', text: content.sendFailed },
-      ]);
+      if (!response.ok) {
+        throw new Error((await response.text()) || content.sendFailed);
+      }
+
+      await readSseStream(response, (payload) => {
+        if (payload.type === 'delta') {
+          setChatMessages((current) =>
+            current.map((message, index) =>
+              index === assistantIndex
+                ? {
+                    ...message,
+                    text: `${message.text}${String(payload.text || '')}`,
+                    isStreaming: true,
+                  }
+                : message
+            )
+          );
+          return;
+        }
+
+        if (payload.type === 'done') {
+          setChatMessages((current) =>
+            current.map((message, index) =>
+              index === assistantIndex
+                ? {
+                    ...message,
+                    text: String(payload.answer || message.text || ''),
+                    timestamps: Array.isArray(payload.timestamps)
+                      ? payload.timestamps
+                      : [],
+                    citations: Array.isArray(payload.citations)
+                      ? payload.citations
+                      : [],
+                    isStreaming: false,
+                  }
+                : message
+            )
+          );
+          return;
+        }
+
+        if (payload.type === 'error') {
+          throw new Error(payload.message || content.sendFailed);
+        }
+      });
+    } catch (error: any) {
+      setChatMessages((current) =>
+        current.map((message, index) =>
+          index === assistantIndex
+            ? {
+                ...message,
+                text: error?.message || content.sendFailed,
+                isStreaming: false,
+              }
+            : message
+        )
+      );
     } finally {
       setIsChatLoading(false);
     }
   }
 
-  async function handleConfirmCustomHighlight() {
-    const theme = customHighlightDraft.trim();
-    if (!theme || !analysisId) {
-      setIsCustomHighlightEditing(false);
-      setCustomHighlightDraft('');
-      return;
-    }
+  async function handleSkillSelect(skillPrompt: string) {
+    if (!skillPrompt) return;
 
-    try {
-      const result = await postJson<{ topics: TopicRange[] }>('/api/video/topic', {
-        analysisId,
-        theme,
-      });
+    setSelectedSkill('');
+    setChatInput(skillPrompt);
 
-      const nextTopics = result.topics.map((topic, index) => ({
-        ...topic,
-        id: `custom-${Date.now()}-${index}-${topic.id}`,
-      }));
-
-      setCustomTopics((current) => [...nextTopics, ...current]);
-      if (nextTopics[0]?.segments[0]) {
-        setSelectedHighlightTopic(nextTopics[0].id);
-        seekTo(nextTopics[0].segments[0].start);
-      }
-    } catch {
-      setErrorMessage(content.topicFailed);
-    } finally {
-      setCustomHighlightDraft('');
-      setIsCustomHighlightEditing(false);
+    if (analysisState === 'ready') {
+      await handleSendChat(skillPrompt);
     }
   }
 
-  const videoEmbedUrl = analysis?.videoInfo.videoId
-    ? buildYouTubeEmbedUrl(analysis.videoInfo.videoId)
-    : null;
+  async function ensureSubtitleTranslation(targetLanguage: string) {
+    if (!analysis?.transcript?.length || !analysisId) return;
+
+    const normalizedTargetLanguage =
+      normalizeLocaleLanguage(targetLanguage) || targetLanguage;
+    if (
+      sourceSubtitleLanguage &&
+      sourceSubtitleLanguage === normalizedTargetLanguage
+    ) {
+      return;
+    }
+
+    const cacheKey = getSubtitleCacheKey(analysisId, normalizedTargetLanguage);
+
+    if (translatedSubtitleCache[cacheKey]?.length) {
+      return;
+    }
+
+    setIsSubtitleTranslating(true);
+
+    try {
+      const result = await postJson<{
+        language: string;
+        translations: string[];
+      }>('/api/video/translate', {
+        analysisId,
+        targetLanguage: normalizedTargetLanguage,
+      });
+
+      setTranslatedSubtitleCache((current) => ({
+        ...current,
+        [cacheKey]: result.translations,
+      }));
+    } catch {
+      setErrorMessage(content.translationFailed);
+    } finally {
+      setIsSubtitleTranslating(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!analysis?.transcript?.length) return;
+
+    if (sourceSubtitleLanguage && sourceSubtitleLanguage === subtitleLanguage) {
+      return;
+    }
+
+    void ensureSubtitleTranslation(subtitleLanguage);
+  }, [
+    analysis?.transcript,
+    analysisId,
+    sourceSubtitleLanguage,
+    subtitleLanguage,
+  ]);
 
   return (
     <div
@@ -497,7 +1022,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
               <Input
                 aria-label="video search"
-                className="border-primary bg-card h-10 rounded-xl pr-12 pl-10 shadow-xs focus-visible:border-primary focus-visible:ring-0"
+                className="border-primary bg-card focus-visible:border-primary h-10 rounded-xl pr-12 pl-10 shadow-xs focus-visible:ring-0"
                 value={inputUrl}
                 onChange={(event) => setInputUrl(event.target.value)}
                 onKeyDown={(event) => {
@@ -512,19 +1037,20 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                 type="button"
                 onClick={() => void handleAnalyze()}
                 aria-label={content.analyze}
-                className="text-muted-foreground absolute top-1/2 right-3.5 -translate-y-1/2"
+                disabled={isAnalyzing}
+                className="text-muted-foreground absolute top-1/2 right-3.5 -translate-y-1/2 disabled:opacity-100"
               >
-                <ArrowRight className="size-4" />
+                {isAnalyzing ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="size-4" />
+                )}
               </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <ThemeToggler
-                className="border-border bg-card text-foreground inline-flex size-9 items-center justify-center rounded-lg border shadow-xs transition-colors hover:bg-muted [&_svg]:size-4"
-              />
-              <TopBadge icon={Globe}>
-                {locale === 'zh' ? '中文' : 'EN'}
-              </TopBadge>
+              <LocaleSelector type="button" />
+              <ThemeToggler className="border-border bg-card text-foreground hover:bg-muted inline-flex size-9 items-center justify-center rounded-lg border shadow-xs transition-colors [&_svg]:size-4" />
               <TopMetric icon={Coins}>{content.credits}</TopMetric>
               <div className="border-border flex size-9 items-center justify-center rounded-full border-2 bg-[var(--color-accent)] text-sm font-semibold text-white">
                 J
@@ -535,7 +1061,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       </header>
 
       <main className="mx-auto grid min-h-[calc(100vh-65px)] w-full max-w-[1360px] xl:h-[calc(100vh-65px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]">
-        <section className="min-w-0 px-4 pb-4 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0 lg:px-6 lg:pb-6">
+        <section className="min-w-0 px-4 pb-4 lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
           <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
             <div className="bg-foreground relative shrink-0 overflow-hidden rounded-2xl shadow-sm">
               {videoEmbedUrl ? (
@@ -563,31 +1089,64 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               ) : null}
             </div>
 
-            <HighlightPanel
-              content={content}
-              locale={locale}
-              customHighlightDraft={customHighlightDraft}
-              customTopics={customTopics}
-              baseTopics={analysis?.topics || []}
-              activeHighlight={activeHighlight}
-              activeHighlightStart={activeHighlightStart}
-              isCustomHighlightEditing={isCustomHighlightEditing}
-              selectedHighlightTopic={selectedHighlightTopic}
-              onCustomHighlightTopicChange={setCustomHighlightDraft}
-              onOpenCustomHighlightEditor={() => setIsCustomHighlightEditing(true)}
-              onCancelCustomHighlight={() => {
-                setCustomHighlightDraft('');
-                setIsCustomHighlightEditing(false);
-              }}
-              onConfirmCustomHighlight={() => void handleConfirmCustomHighlight()}
-              onTopicChange={(topic) => {
-                setSelectedHighlightTopic(topic.id);
-                if (topic.segments[0]) {
-                  seekTo(topic.segments[0].start);
-                }
-              }}
-              onJumpToSegment={(segment) => seekTo(segment.start)}
-            />
+            <Tabs
+              defaultValue="captions"
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <TabsList className="bg-muted text-muted-foreground inline-flex h-10 w-fit shrink-0 items-center justify-start rounded-xl p-1">
+                <WorkspaceTabTrigger
+                  value="captions"
+                  icon={Captions}
+                  label={content.captions}
+                />
+                <WorkspaceTabTrigger
+                  value="summary"
+                  icon={List}
+                  label={content.summary}
+                />
+              </TabsList>
+
+              <TabsContent
+                value="captions"
+                className="mt-4 min-h-0 flex-1 outline-none"
+              >
+                <CaptionsPanel
+                  transcriptKey={analysis?.analysisId || analysisId}
+                  content={content}
+                  activeSubtitleIndex={activeSubtitleIndex}
+                  displayedSubtitleItems={subtitleItems}
+                  isBilingualCaptions={isBilingualCaptions}
+                  isSubtitleTranslating={isSubtitleTranslating}
+                  subtitleLanguage={subtitleLanguage}
+                  subtitleLanguages={subtitleLanguages}
+                  onToggleBilingual={() =>
+                    setIsBilingualCaptions((current) => !current)
+                  }
+                  onSubtitleLanguageChange={(value) => {
+                    setSubtitleLanguage(value);
+                    void ensureSubtitleTranslation(value);
+                  }}
+                  onSeekToTimestamp={seekTo}
+                  onCopySubtitles={handleCopySubtitles}
+                  onDownloadSubtitles={handleDownloadSubtitles}
+                />
+              </TabsContent>
+
+              <TabsContent
+                value="summary"
+                className="mt-4 min-h-0 flex-1 outline-none"
+              >
+                <SummaryPanel
+                  content={content}
+                  analysis={analysis}
+                  isLoading={
+                    analysisState === 'submitting' ||
+                    analysisState === 'polling'
+                  }
+                  onTimestampClick={seekTo}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         </section>
 
@@ -596,23 +1155,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
             defaultValue="chat"
             className="flex h-full min-h-[720px] flex-col xl:min-h-0"
           >
-            <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-5 xl:gap-2.5 xl:overflow-visible">
+            <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-3 xl:gap-2.5 xl:overflow-visible">
               <WorkspaceTabTrigger
                 value="chat"
                 icon={MessageSquare}
                 label={content.chat}
-                className="min-w-[96px] xl:w-full xl:min-w-0"
-              />
-              <WorkspaceTabTrigger
-                value="summary"
-                icon={List}
-                label={content.summary}
-                className="min-w-[96px] xl:w-full xl:min-w-0"
-              />
-              <WorkspaceTabTrigger
-                value="captions"
-                icon={Captions}
-                label={content.captions}
                 className="min-w-[96px] xl:w-full xl:min-w-0"
               />
               <WorkspaceTabTrigger
@@ -633,13 +1180,21 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               value="chat"
               className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
             >
-              <ScrollArea className="min-h-0 flex-1 px-5 py-5">
+              <ScrollArea
+                ref={chatScrollAreaRef}
+                className="min-h-0 flex-1 px-5 py-5"
+              >
                 <div className="space-y-4 pb-4">
                   {chatMessages.length > 0 ? (
                     chatMessages.map((message, index) => (
                       <ChatBubble
                         key={`${message.role}-${index}`}
+                        copyFailedLabel={content.copyReplyFailed}
+                        copyLabel={content.copyReply}
+                        copySuccessLabel={content.copyReplySuccess}
                         message={message}
+                        onTimestampClick={seekTo}
+                        streamingLabel={content.chatStreaming}
                       />
                     ))
                   ) : (
@@ -651,79 +1206,65 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               </ScrollArea>
 
               <div className="border-border space-y-3 border-t px-5 py-4">
-                <div className="flex flex-wrap gap-2">
-                  {content.prompts.map((prompt, index) => (
-                    <Button
-                      key={prompt}
-                      variant="outline"
-                      className="border-border bg-background h-8 rounded-full px-3 text-xs font-medium"
-                      onClick={() => {
-                        setChatInput(prompt);
-                        if (analysisState === 'ready') {
-                          void handleSendChat(prompt);
-                        }
-                      }}
-                    >
-                      {index === 0 && (
-                        <Lightbulb className="text-primary size-3.5" />
-                      )}
-                      {index === 1 && (
-                        <List className="text-primary size-3.5" />
-                      )}
-                      {index === 2 && <Zap className="text-primary size-3.5" />}
-                      {prompt}
-                    </Button>
-                  ))}
-                </div>
-
                 <div className="space-y-3 px-1 pt-1">
-                  <div className="border-border bg-card relative rounded-[24px] border px-4 py-4 shadow-xs">
+                  <div className="border-border bg-card rounded-[24px] border px-4 py-3 shadow-xs">
                     <Textarea
                       aria-label="Ask anything about this video"
                       rows={2}
                       maxLength={5000}
                       value={chatInput}
                       onChange={(event) => setChatInput(event.target.value)}
-                      className="text-foreground min-h-28 resize-none border-0 !bg-transparent px-0 py-0 pr-20 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                      placeholder={content.askPlaceholder}
-                    />
-                    <Button
-                      size="icon"
-                      type="button"
-                      aria-label="Send message"
-                      disabled={analysisState !== 'ready' || isChatLoading}
-                      onClick={() => void handleSendChat()}
-                      className={cn(
-                        'absolute right-4 bottom-4 size-10 rounded-xl',
-                        chatInput.trim()
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-primary/20 text-primary hover:bg-primary/25'
-                      )}
-                    >
-                      <ArrowUp className="size-4.5" />
-                    </Button>
-                  </div>
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' || event.shiftKey) {
+                          return;
+                        }
 
-                  <div className="flex items-center justify-between gap-3 px-1">
-                    <div className="flex flex-wrap items-center gap-3">
+                        event.preventDefault();
+                        if (analysisState === 'ready' && !isChatLoading) {
+                          void handleSendChat();
+                        }
+                      }}
+                      className="text-foreground min-h-20 resize-none border-0 !bg-transparent px-0 py-0 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                      placeholder={chatInputPlaceholder}
+                    />
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <div className="relative">
-                        <Languages className="text-foreground pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2" />
                         <select
-                          aria-label="Chat input mode"
-                          value={chatInputMode}
+                          aria-label="Skill"
+                          value={selectedSkill}
                           onChange={(event) =>
-                            setChatInputMode(event.target.value)
+                            void handleSkillSelect(event.target.value)
                           }
-                          className="border-border bg-background text-foreground h-11 min-w-[132px] appearance-none rounded-2xl border py-0 pr-10 pl-12 text-sm font-semibold shadow-none outline-none focus-visible:border-primary focus-visible:ring-0"
+                          className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[132px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
                         >
-                          <option value="auto">
-                            {locale === 'zh' ? '自动' : 'Auto'}
-                          </option>
-                          <option value="translate">
-                            {locale === 'zh' ? '翻译' : 'Translate'}
-                          </option>
+                          <option value="">Skill</option>
+                          {content.prompts.map((prompt) => (
+                            <option key={prompt} value={prompt}>
+                              {prompt}
+                            </option>
+                          ))}
                         </select>
-                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2" />
+                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
+                      </div>
+
+                      <div className="relative">
+                        <select
+                          aria-label={content.modelLabel}
+                          value={chatModel}
+                          onChange={(event) =>
+                            setChatModel(
+                              event.target.value as SupportedAIModelId
+                            )
+                          }
+                          className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
+                        >
+                          {SUPPORTED_AI_MODELS.map((modelOption) => (
+                            <option key={modelOption.id} value={modelOption.id}>
+                              {modelOption.title}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
                       </div>
 
                       <Button
@@ -732,11 +1273,9 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                         size="icon"
                         aria-label="Copy"
                         onClick={() =>
-                          navigator.clipboard?.writeText(
-                            chatMessages.map((message) => message.text).join('\n\n')
-                          )
+                          navigator.clipboard?.writeText(chatExportText)
                         }
-                        className="text-muted-foreground hover:text-foreground size-10 rounded-xl"
+                        className="text-muted-foreground hover:text-foreground size-10 rounded-full"
                       >
                         <Clipboard className="size-5" />
                       </Button>
@@ -747,43 +1286,32 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                         size="icon"
                         aria-label="Clear"
                         onClick={() => setChatInput('')}
-                        className="text-muted-foreground hover:text-foreground size-10 rounded-xl"
+                        className="text-muted-foreground hover:text-foreground size-10 rounded-full"
                       >
                         <Eraser className="size-5" />
                       </Button>
-                    </div>
 
-                    <div className="text-muted-foreground text-sm font-medium">
-                      {chatInput.length}/5000
+                      <Button
+                        size="icon"
+                        type="button"
+                        aria-label="Send message"
+                        disabled={analysisState !== 'ready' || isChatLoading}
+                        onClick={() => void handleSendChat()}
+                        className={cn(
+                          'ml-auto size-10 rounded-full',
+                          chatInput.trim()
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            : 'bg-primary/20 text-primary hover:bg-primary/25'
+                        )}
+                      >
+                        <ArrowUp className="size-4.5" />
+                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
             </TabsContent>
 
-            <SidebarContent value="summary">
-              <SummaryPanel
-                content={content}
-                analysis={analysis}
-                isLoading={analysisState === 'submitting' || analysisState === 'polling'}
-              />
-            </SidebarContent>
-            <SidebarContent value="captions">
-              <CaptionsPanel
-                content={content}
-                displayedSubtitleItems={displayedSubtitleItems}
-                subtitleLanguage="original"
-                subtitleLanguages={[
-                  {
-                    value: 'original',
-                    label: content.authLanguage,
-                  },
-                ]}
-                onSubtitleLanguageChange={() => undefined}
-                onCopySubtitles={handleCopySubtitles}
-                onDownloadSubtitles={handleDownloadSubtitles}
-              />
-            </SidebarContent>
             <SidebarContent
               value="mindmap"
               title={content.mindMapHeading}
@@ -807,34 +1335,6 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function TopBadge({
-  children,
-  icon: Icon,
-  muted = false,
-}: {
-  children: React.ReactNode;
-  icon: LucideIcon;
-  muted?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        'border-border inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium shadow-xs',
-        muted ? 'bg-muted text-foreground' : 'bg-card text-foreground'
-      )}
-    >
-      <Icon
-        className={cn(
-          'size-3.5',
-          muted ? 'text-primary' : 'text-muted-foreground'
-        )}
-      />
-      <span>{children}</span>
-      {!muted && <ChevronDown className="text-muted-foreground size-3.5" />}
     </div>
   );
 }
@@ -879,14 +1379,16 @@ function WorkspaceTabTrigger({
   );
 }
 
-function SummaryPanel({
+const SummaryPanel = memo(function SummaryPanel({
   content,
   analysis,
   isLoading,
+  onTimestampClick,
 }: {
   content: VideoChatCopy;
   analysis: VideoAnalysisPayload | null;
   isLoading: boolean;
+  onTimestampClick?: (seconds: number) => void;
 }) {
   return (
     <div className="border-border bg-card/70 h-full overflow-hidden rounded-2xl border shadow-xs">
@@ -907,195 +1409,180 @@ function SummaryPanel({
             </p>
 
             <div className="mt-5 space-y-4">
-              {(analysis?.summary.points || []).map((point, index) => (
-                <div
-                  key={`${point.timestamp || 'point'}-${index}`}
-                  className="flex gap-3"
-                >
-                  <div className="text-primary min-w-5 text-sm font-semibold">
-                    {index + 1}.
+              {(analysis?.summary.points || []).map((point, index) => {
+                const timestamp = parseSummaryTimestamp(point.timestamp);
+
+                return (
+                  <div
+                    key={`${point.timestamp || 'point'}-${index}`}
+                    className="flex gap-3"
+                  >
+                    <div className="text-primary min-w-5 pt-0.5 text-sm font-semibold">
+                      {index + 1}.
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-6">
+                      {timestamp ? (
+                        <button
+                          type="button"
+                          onClick={() => onTimestampClick?.(timestamp.seconds)}
+                          className="text-primary hover:bg-primary/10 mr-1 inline-flex rounded-md px-1 py-0.5 text-sm font-semibold transition-colors"
+                        >
+                          [{timestamp.label}]
+                        </button>
+                      ) : null}
+                      {point.title ? `${point.title}: ` : ''}
+                      {point.text}
+                    </p>
                   </div>
-                  <p className="text-muted-foreground text-sm leading-6">
-                    {point.timestamp ? `[${point.timestamp}] ` : ''}
-                    {point.title ? `${point.title}: ` : ''}
-                    {point.text}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       </ScrollArea>
     </div>
   );
-}
-
-function HighlightPanel({
-  content,
-  locale,
-  customHighlightDraft,
-  customTopics,
-  baseTopics,
-  activeHighlight,
-  activeHighlightStart,
-  isCustomHighlightEditing,
-  selectedHighlightTopic,
-  onCustomHighlightTopicChange,
-  onOpenCustomHighlightEditor,
-  onCancelCustomHighlight,
-  onConfirmCustomHighlight,
-  onTopicChange,
-  onJumpToSegment,
-}: {
-  content: VideoChatCopy;
-  locale: string;
-  customHighlightDraft: string;
-  customTopics: TopicRange[];
-  baseTopics: TopicRange[];
-  activeHighlight: TopicRange | null;
-  activeHighlightStart: number;
-  isCustomHighlightEditing: boolean;
-  selectedHighlightTopic: string;
-  onCustomHighlightTopicChange: (value: string) => void;
-  onOpenCustomHighlightEditor: () => void;
-  onCancelCustomHighlight: () => void;
-  onConfirmCustomHighlight: () => void;
-  onTopicChange: (topic: TopicRange) => void;
-  onJumpToSegment: (segment: TopicRange['segments'][number]) => void;
-}) {
-  return (
-    <div className="border-border bg-card/80 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border shadow-xs">
-      <div className="border-border bg-background/95 space-y-3 border-b p-4">
-        <div className="flex flex-wrap gap-2">
-          {isCustomHighlightEditing ? (
-            <div className="border-border bg-background flex h-10 min-w-[100px] items-center gap-2 rounded-full border px-2.5 shadow-xs">
-              <input
-                autoFocus
-                value={customHighlightDraft}
-                onChange={(event) =>
-                  onCustomHighlightTopicChange(event.target.value)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    onConfirmCustomHighlight();
-                  }
-
-                  if (event.key === 'Escape') {
-                    event.preventDefault();
-                    onCancelCustomHighlight();
-                  }
-                }}
-                placeholder={content.highlightInputPlaceholder}
-                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
-              />
-              <button
-                type="button"
-                onClick={onConfirmCustomHighlight}
-                className="text-primary hover:bg-primary/10 inline-flex size-6 items-center justify-center rounded-full transition-colors"
-                aria-label={locale === 'zh' ? '确认主题' : 'Confirm topic'}
-              >
-                <Check className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={onCancelCustomHighlight}
-                className="text-muted-foreground hover:bg-muted inline-flex size-6 items-center justify-center rounded-full transition-colors"
-                aria-label={locale === 'zh' ? '取消编辑' : 'Cancel editing'}
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenCustomHighlightEditor}
-              className="border-border bg-background text-muted-foreground hover:bg-muted inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors"
-            >
-              <span>{content.highlightInputPlaceholder}</span>
-              <Plus className="size-3.5" />
-            </button>
-          )}
-
-          {[...customTopics, ...baseTopics].map((topic) => (
-            <button
-              key={topic.id}
-              type="button"
-              onClick={() => onTopicChange(topic)}
-              className={cn(
-                'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                topic.id === selectedHighlightTopic
-                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                  : 'border-border bg-card text-foreground hover:bg-muted'
-              )}
-            >
-              {topic.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 p-4">
-          {activeHighlight?.segments?.length ? (
-            activeHighlight.segments.map((segment) => (
-              <button
-                key={`${activeHighlight.id}-${segment.start}-${segment.end}`}
-                type="button"
-                onClick={() => onJumpToSegment(segment)}
-                className={cn(
-                  'border-border bg-background hover:bg-muted/60 block w-full rounded-2xl border p-4 text-left transition-colors',
-                  Math.abs(activeHighlightStart - segment.start) < 0.5 &&
-                    'bg-accent/55 dark:bg-accent/30'
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold">
-                    <Clock3 className="size-3.5" />
-                    {formatTimestamp(segment.start)} - {formatTimestamp(segment.end)}
-                  </span>
-                  <span className="text-primary inline-flex items-center gap-2 text-sm font-semibold">
-                    <Play className="size-4 fill-current" />
-                    {content.jump}
-                  </span>
-                </div>
-                <p className="text-foreground mt-3 text-sm leading-7 font-medium">
-                  {segment.text}
-                </p>
-              </button>
-            ))
-          ) : (
-            <div className="text-muted-foreground text-sm leading-7">
-              {content.emptyHighlights}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
-  );
-}
+});
 
 function CaptionsPanel({
+  activeSubtitleIndex,
   content,
   displayedSubtitleItems,
+  isBilingualCaptions,
+  isSubtitleTranslating,
   subtitleLanguage,
   subtitleLanguages,
+  transcriptKey,
+  onToggleBilingual,
   onSubtitleLanguageChange,
+  onSeekToTimestamp,
   onCopySubtitles,
   onDownloadSubtitles,
 }: {
+  activeSubtitleIndex: number;
   content: VideoChatCopy;
   displayedSubtitleItems: SubtitleItem[];
+  isBilingualCaptions: boolean;
+  isSubtitleTranslating: boolean;
   subtitleLanguage: string;
   subtitleLanguages: Array<{ value: string; label: string }>;
+  transcriptKey: string;
+  onToggleBilingual: () => void;
   onSubtitleLanguageChange: (value: string) => void;
+  onSeekToTimestamp: (seconds: number) => void;
   onCopySubtitles: () => void | Promise<void>;
   onDownloadSubtitles: () => void;
 }) {
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const autoScrollLockRef = useRef(false);
+  const autoScrollUnlockTimeoutRef = useRef<number | null>(null);
+  const [isAutoFollowEnabled, setIsAutoFollowEnabled] = useState(true);
+  const [isCurrentSubtitleInView, setIsCurrentSubtitleInView] = useState(true);
+
+  const currentSubtitle = displayedSubtitleItems[activeSubtitleIndex] || null;
+
+  function checkCurrentSubtitleVisibility() {
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    );
+    const activeItem = itemRefs.current[activeSubtitleIndex];
+
+    if (!viewport || !activeItem || activeSubtitleIndex < 0) {
+      setIsCurrentSubtitleInView(false);
+      return;
+    }
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const itemRect = activeItem.getBoundingClientRect();
+    const isVisible =
+      itemRect.bottom > viewportRect.top && itemRect.top < viewportRect.bottom;
+
+    setIsCurrentSubtitleInView(isVisible);
+  }
+
+  useEffect(() => {
+    setIsAutoFollowEnabled(true);
+    setIsCurrentSubtitleInView(true);
+  }, [transcriptKey]);
+
+  useEffect(() => {
+    return () => {
+      if (autoScrollUnlockTimeoutRef.current !== null) {
+        window.clearTimeout(autoScrollUnlockTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      checkCurrentSubtitleVisibility();
+
+      if (autoScrollLockRef.current || !isAutoFollowEnabled) return;
+      setIsAutoFollowEnabled(false);
+    };
+
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  }, [isAutoFollowEnabled]);
+
+  useEffect(() => {
+    checkCurrentSubtitleVisibility();
+
+    if (!isAutoFollowEnabled || activeSubtitleIndex < 0) return;
+
+    const activeItem = itemRefs.current[activeSubtitleIndex];
+    if (!activeItem) return;
+
+    autoScrollLockRef.current = true;
+    activeItem.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+
+    if (autoScrollUnlockTimeoutRef.current !== null) {
+      window.clearTimeout(autoScrollUnlockTimeoutRef.current);
+    }
+
+    autoScrollUnlockTimeoutRef.current = window.setTimeout(() => {
+      autoScrollLockRef.current = false;
+      checkCurrentSubtitleVisibility();
+    }, 450);
+  }, [activeSubtitleIndex, isAutoFollowEnabled]);
+
+  function handleJumpToCurrentSubtitle() {
+    setIsAutoFollowEnabled(true);
+    const activeItem = itemRefs.current[activeSubtitleIndex];
+    if (!activeItem) return;
+
+    autoScrollLockRef.current = true;
+    activeItem.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+
+    if (autoScrollUnlockTimeoutRef.current !== null) {
+      window.clearTimeout(autoScrollUnlockTimeoutRef.current);
+    }
+
+    autoScrollUnlockTimeoutRef.current = window.setTimeout(() => {
+      autoScrollLockRef.current = false;
+      checkCurrentSubtitleVisibility();
+    }, 450);
+  }
+
   return (
-    <div className="border-border bg-card/80 flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border shadow-xs">
+    <div className="border-border bg-card/80 relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border shadow-xs">
       <div className="border-border bg-background/95 flex flex-wrap items-center gap-2 border-b p-3">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
           <SubtitleActionButton
             icon={Copy}
             label={content.copySubtitles}
@@ -1112,10 +1599,9 @@ function CaptionsPanel({
             <Languages className="text-foreground pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
             <select
               aria-label="Subtitle language"
+              disabled={isSubtitleTranslating}
               value={subtitleLanguage}
-              onChange={(event) =>
-                onSubtitleLanguageChange(event.target.value)
-              }
+              onChange={(event) => onSubtitleLanguageChange(event.target.value)}
               className="border-border bg-card text-foreground focus-visible:border-primary h-9 min-w-[168px] appearance-none rounded-lg border py-0 pr-9 pl-8 text-sm font-medium shadow-none outline-none focus-visible:ring-0 sm:min-w-[220px]"
             >
               {subtitleLanguages.map((language) => (
@@ -1126,26 +1612,70 @@ function CaptionsPanel({
             </select>
             <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2" />
           </div>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <label
+              htmlFor="bilingual-captions-switch"
+              className="text-foreground text-sm font-medium"
+            >
+              {content.bilingualCaptions}
+            </label>
+            <Switch
+              id="bilingual-captions-switch"
+              checked={isBilingualCaptions}
+              onCheckedChange={onToggleBilingual}
+            />
+          </div>
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 p-4">
-          {displayedSubtitleItems.length > 0 ? (
-            displayedSubtitleItems.map((item, index) => (
-              <SubtitleListItem
-                key={`${item.timestamp}-${index}`}
-                item={item}
-                merged
-              />
-            ))
-          ) : (
-            <div className="text-muted-foreground text-sm leading-7">
-              {content.emptyCaptions}
-            </div>
-          )}
+      <div className="relative min-h-0 flex-1">
+        <ScrollArea ref={scrollAreaRef} className="h-full min-h-0">
+          <div className="space-y-3 p-4">
+            {displayedSubtitleItems.length > 0 ? (
+              displayedSubtitleItems.map((item, index) => (
+                <div
+                  key={`${item.timestamp}-${index}`}
+                  ref={(node) => {
+                    itemRefs.current[index] = node;
+                  }}
+                >
+                  <MemoizedSubtitleListItem
+                    item={item}
+                    isActive={index === activeSubtitleIndex}
+                    isBilingual={isBilingualCaptions}
+                    merged
+                    onJumpToTimestamp={onSeekToTimestamp}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="text-muted-foreground text-sm leading-7">
+                {content.emptyCaptions}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {isSubtitleTranslating ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <ClaudeCodeLoading label={content.translatingCaptions} />
+          </div>
+        ) : null}
+      </div>
+
+      {!isAutoFollowEnabled && currentSubtitle && !isCurrentSubtitleInView ? (
+        <div className="pointer-events-none absolute top-20 right-4 left-4 z-10 flex justify-center">
+          <Button
+            type="button"
+            onClick={handleJumpToCurrentSubtitle}
+            className="pointer-events-auto animate-bounce rounded-full px-4 shadow-lg [animation-duration:1.8s]"
+          >
+            <ArrowDown className="size-4" />
+            {content.jumpToCurrentSubtitle}
+          </Button>
         </div>
-      </ScrollArea>
+      ) : null}
     </div>
   );
 }
@@ -1183,20 +1713,45 @@ function SubtitleActionButton({
 
 function SubtitleListItem({
   item,
+  isBilingual,
   merged,
+  isActive,
+  onJumpToTimestamp,
 }: {
   item: SubtitleItem;
+  isBilingual?: boolean;
   merged: boolean;
+  isActive?: boolean;
+  onJumpToTimestamp?: (seconds: number) => void;
 }) {
+  const hasTranslatedLine =
+    Boolean(item.translatedText) && item.translatedText !== item.originalText;
+  const primaryText = isBilingual ? item.originalText : item.text;
+  const secondaryText =
+    isBilingual && hasTranslatedLine ? item.translatedText : null;
+
   if (!merged) {
     return (
       <div className="border-border grid gap-3 border-b px-4 py-4 last:border-b-0 md:grid-cols-[104px_minmax(0,1fr)] md:gap-4">
         <div className="pt-0.5">
-          <span className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex rounded-full px-3 py-1.5 text-sm font-semibold">
+          <button
+            type="button"
+            onClick={() => onJumpToTimestamp?.(item.start)}
+            className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex rounded-full px-3 py-1.5 text-sm font-semibold transition-opacity hover:opacity-85"
+          >
             {item.timestamp}
-          </span>
+          </button>
         </div>
-        <p className="text-muted-foreground text-sm leading-7">{item.text}</p>
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm leading-7">
+            {primaryText}
+          </p>
+          {secondaryText ? (
+            <p className="text-foreground/80 text-sm leading-7">
+              {secondaryText}
+            </p>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -1205,22 +1760,49 @@ function SubtitleListItem({
     <div
       className={cn(
         'rounded-2xl px-4 py-4',
-        item.active ? 'bg-accent/70 dark:bg-accent/35' : 'bg-transparent'
+        isActive ? 'bg-accent/70 dark:bg-accent/35' : 'bg-transparent'
       )}
     >
       <div className="flex items-start gap-4">
-        <span className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex shrink-0 rounded-xl px-2.5 py-1.5 text-sm font-semibold">
+        <button
+          type="button"
+          onClick={() => onJumpToTimestamp?.(item.start)}
+          className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex shrink-0 rounded-xl px-2.5 py-1.5 text-sm font-semibold transition-opacity hover:opacity-85"
+        >
           {item.timestamp}
-        </span>
-        <p className="text-foreground text-sm leading-7 font-medium">
-          {item.text}
-        </p>
+        </button>
+        <div className="min-w-0 space-y-2">
+          <p className="text-foreground text-sm leading-7 font-medium">
+            {primaryText}
+          </p>
+          {secondaryText ? (
+            <p className="text-muted-foreground text-sm leading-7">
+              {secondaryText}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );
 }
 
-function ChatBubble({ message }: { message: Message }) {
+const MemoizedSubtitleListItem = memo(SubtitleListItem);
+
+const ChatBubble = memo(function ChatBubble({
+  copyFailedLabel,
+  copyLabel,
+  copySuccessLabel,
+  message,
+  onTimestampClick,
+  streamingLabel,
+}: {
+  copyFailedLabel: string;
+  copyLabel: string;
+  copySuccessLabel: string;
+  message: Message;
+  onTimestampClick?: (seconds: number) => void;
+  streamingLabel?: string;
+}) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -1231,14 +1813,170 @@ function ChatBubble({ message }: { message: Message }) {
     );
   }
 
+  const citationsByTimestamp = new Map(
+    (message.citations || []).map((citation) => [citation.timestamp, citation])
+  );
+  const lines = message.text.split('\n');
+  const hasMessageText = Boolean(message.text.trim());
+  const showBubbleChrome = hasMessageText || !message.isStreaming;
+
+  function renderTextWithTimestamps(
+    line: string,
+    lineIndex: number,
+    keyPrefix = 'line'
+  ) {
+    const parts: React.ReactNode[] = [];
+    const matcher = /\[([^\]]+)\]/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = matcher.exec(line)) !== null) {
+      const [rawMatch, content] = match;
+      const timestamps = content
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => parseChatTimestampReference(item))
+        .filter(
+          (
+            item
+          ): item is {
+            normalized: string;
+            seconds: number;
+            label: string;
+          } => Boolean(item)
+        );
+
+      if (match.index > lastIndex) {
+        parts.push(line.slice(lastIndex, match.index));
+      }
+
+      if (timestamps.length === 0) {
+        parts.push(rawMatch);
+      } else {
+        timestamps.forEach((timestamp, timestampIndex) => {
+          const citation = citationsByTimestamp.get(timestamp.normalized);
+          const targetSeconds = citation?.start ?? timestamp.seconds;
+
+          parts.push(
+            <button
+              key={`ts-${keyPrefix}-${lineIndex}-${match?.index}-${timestampIndex}`}
+              type="button"
+              onClick={() => onTimestampClick?.(targetSeconds)}
+              className="text-primary hover:bg-primary/10 inline-flex rounded-md px-1 py-0.5 text-sm font-semibold transition-colors"
+            >
+              [{citation?.timestamp || timestamp.label}]
+            </button>
+          );
+
+          if (timestampIndex < timestamps.length - 1) {
+            parts.push(
+              <span
+                key={`ts-sep-${keyPrefix}-${lineIndex}-${match?.index}-${timestampIndex}`}
+                className="text-muted-foreground px-0.5"
+              >
+                {' '}
+              </span>
+            );
+          }
+        });
+      }
+
+      lastIndex = match.index + rawMatch.length;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : [line];
+  }
+
+  function renderFormattedLine(line: string, lineIndex: number) {
+    const segments = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+
+    return segments.map((segment, segmentIndex) => {
+      const isBold = segment.startsWith('**') && segment.endsWith('**');
+      const content = isBold ? segment.slice(2, -2) : segment;
+      const rendered = renderTextWithTimestamps(
+        content,
+        lineIndex,
+        `${segmentIndex}-${isBold ? 'bold' : 'text'}`
+      );
+
+      if (!isBold) {
+        return <span key={`seg-${lineIndex}-${segmentIndex}`}>{rendered}</span>;
+      }
+
+      return (
+        <strong
+          key={`seg-${lineIndex}-${segmentIndex}`}
+          className="text-foreground font-semibold"
+        >
+          {rendered}
+        </strong>
+      );
+    });
+  }
+
+  async function handleCopyMessage() {
+    if (!message.text.trim() || !navigator.clipboard) {
+      toast.error(copyFailedLabel);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(message.text);
+      toast.success(copySuccessLabel);
+    } catch {
+      toast.error(copyFailedLabel);
+    }
+  }
+
   return (
     <div className="flex items-start">
-      <div className="bg-card/90 border-border text-foreground max-w-full rounded-xl border px-4 py-3 text-sm leading-7 shadow-xs backdrop-blur-sm">
-        <p className="whitespace-pre-line">{message.text}</p>
+      <div
+        className={cn(
+          'text-foreground max-w-full text-sm leading-7',
+          showBubbleChrome
+            ? 'bg-card/90 border-border relative rounded-xl border p-4 shadow-xs backdrop-blur-sm'
+            : 'py-1'
+        )}
+      >
+        {showBubbleChrome ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={copyLabel}
+            title={copyLabel}
+            disabled={!hasMessageText}
+            onClick={() => void handleCopyMessage()}
+            className="text-muted-foreground hover:text-foreground absolute top-4 right-4 size-8 rounded-lg"
+          >
+            <Copy className="size-4" />
+          </Button>
+        ) : null}
+        {hasMessageText ? (
+          <div className="space-y-2 pr-10">
+            {lines.map((line, index) =>
+              line ? (
+                <p key={`line-${index}`}>{renderFormattedLine(line, index)}</p>
+              ) : (
+                <div key={`line-${index}`} className="h-3" />
+              )
+            )}
+          </div>
+        ) : null}
+        {message.isStreaming ? (
+          <div className={cn(hasMessageText ? 'mt-2' : 'px-1')}>
+            <ClaudeCodeLoading label={streamingLabel || 'Streaming response'} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
-}
+});
 
 function SidebarContent({
   value,

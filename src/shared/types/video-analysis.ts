@@ -66,3 +66,29 @@ export type VideoChatMessage = {
   role: 'assistant' | 'user' | 'system';
   content: string;
 };
+
+export type VideoChatCitation = {
+  timestamp: string;
+  seconds: number;
+  start: number;
+  end: number;
+  text: string;
+  segmentIndex: number;
+};
+
+export type VideoChatAnswer = {
+  answer: string;
+  timestamps: string[];
+  citations?: VideoChatCitation[];
+};
+
+export type VideoChatStreamChunk =
+  | {
+      type: 'delta';
+      text: string;
+    }
+  | {
+      type: 'done';
+      answer: string;
+      timestamps: string[];
+    };

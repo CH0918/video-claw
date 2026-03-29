@@ -1,5 +1,7 @@
 import {
   TopicRange,
+  VideoChatAnswer,
+  VideoChatStreamChunk,
   TranscriptSegment,
   VideoChatMessage,
   VideoInfo,
@@ -18,7 +20,32 @@ export type ReasoningProviderConfig = {
   apiKey: string;
   baseUrl: string;
   model: string;
+  models?: Partial<Record<ReasoningModelPurpose, string>>;
 };
+
+export type ReasoningModelPurpose =
+  | 'default'
+  | 'translate'
+  | 'topics'
+  | 'summary'
+  | 'chat';
+
+export function getReasoningModel(
+  config: ReasoningProviderConfig,
+  purpose: ReasoningModelPurpose,
+  overrideModel?: string
+) {
+  const requestedModel = String(overrideModel || '').trim();
+  if (requestedModel) {
+    return requestedModel;
+  }
+
+  return (
+    config.models?.[purpose] ||
+    config.models?.default ||
+    config.model
+  );
+}
 
 export type TranscriptTaskResult = {
   status: 'pending' | 'processing' | 'success' | 'error';
@@ -42,6 +69,12 @@ export interface TranscriptProvider {
 
 export interface VideoReasoningProvider {
   name: string;
+  translateTexts(input: {
+    texts: string[];
+    targetLanguage: string;
+    sourceLanguage?: string;
+    videoInfo?: Partial<VideoInfo>;
+  }): Promise<string[]>;
   generateTopics(input: {
     transcript: TranscriptSegment[];
     videoInfo: Partial<VideoInfo>;
@@ -56,5 +89,12 @@ export interface VideoReasoningProvider {
     transcript: TranscriptSegment[];
     videoInfo: Partial<VideoInfo>;
     messages: VideoChatMessage[];
-  }): Promise<string>;
+    model?: string;
+  }): Promise<VideoChatAnswer>;
+  streamAnswerQuestion?(input: {
+    transcript: TranscriptSegment[];
+    videoInfo: Partial<VideoInfo>;
+    messages: VideoChatMessage[];
+    model?: string;
+  }): AsyncGenerator<VideoChatStreamChunk, void, void>;
 }

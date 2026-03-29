@@ -2,6 +2,7 @@ import {
   DeapiTranscriptProvider,
 } from './deapi';
 import { DeepseekReasoningProvider } from './deepseek';
+import { EvolinkReasoningProvider } from './evolink';
 import {
   ReasoningProviderConfig,
   TranscriptProvider,
@@ -20,6 +21,10 @@ export function getTranscriptProvider(config: TranscriptProviderConfig): Transcr
 export function getVideoReasoningProvider(
   config: ReasoningProviderConfig
 ): VideoReasoningProvider {
+  if (config.provider === 'evolink') {
+    return new EvolinkReasoningProvider(config);
+  }
+
   if (config.provider === 'deepseek') {
     return new DeepseekReasoningProvider(config);
   }
