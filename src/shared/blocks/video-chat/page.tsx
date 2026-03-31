@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from 'react';
 import { Space_Grotesk } from 'next/font/google';
 import { useRouter } from 'next/navigation';
@@ -17,9 +18,10 @@ import {
   ArrowRight,
   ArrowUp,
   Captions,
+  ChevronLeft,
   ChevronDown,
+  ChevronUp,
   Clipboard,
-  Coins,
   Copy,
   Download,
   Eraser,
@@ -38,7 +40,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { localeNames, locales } from '@/config/locale';
-import { LocaleSelector, ThemeToggler } from '@/shared/blocks/common';
 import { Button } from '@/shared/components/ui/button';
 import { ClaudeCodeLoading } from '@/shared/components/ui/claude-code-loading';
 import { Input } from '@/shared/components/ui/input';
@@ -52,6 +53,7 @@ import {
 } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useAppContext } from '@/shared/contexts/app';
+import { useIsMobile } from '@/shared/hooks/use-mobile';
 import {
   SUPPORTED_AI_MODELS,
   SupportedAIModelId,
@@ -71,6 +73,7 @@ import {
   VideoChatAnswer,
   VideoChatCitation,
 } from '@/shared/types/video-analysis';
+import { VideoChatHeaderMenu } from './header-menu';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -89,10 +92,12 @@ type VideoChatCopy = {
   copyReplyFailed: string;
   copyReplySuccess: string;
   copySubtitles: string;
+  collapseVideo: string;
   credits: string;
   downloadSubtitles: string;
   emptyCaptions: string;
   emptyChat: string;
+  expandVideo: string;
   exportPrompt: string;
   jumpToCurrentSubtitle: string;
   modelLabel: string;
@@ -467,10 +472,12 @@ function buildVideoChatCopy(
     copyReplyFailed: t('copyReplyFailed'),
     copyReplySuccess: t('copyReplySuccess'),
     copySubtitles: t('copySubtitles'),
+    collapseVideo: t('collapseVideo'),
     credits: t('credits'),
     downloadSubtitles: t('downloadSubtitles'),
     emptyCaptions: t('emptyCaptions'),
     emptyChat: t('emptyChat'),
+    expandVideo: t('expandVideo'),
     exportPrompt: t('exportPrompt'),
     jumpToCurrentSubtitle: t('jumpToCurrentSubtitle'),
     modelLabel: t('modelLabel'),
@@ -497,6 +504,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const t = useTranslations('pages.video.chat');
   const content = useMemo(() => buildVideoChatCopy(t), [t]);
   const { user } = useAppContext();
+  const isMobile = useIsMobile();
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -527,6 +535,8 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     Record<string, string[]>
   >({});
   const [isSubtitleTranslating, setIsSubtitleTranslating] = useState(false);
+  const [isMobileSearchExpanded, setIsMobileSearchExpanded] = useState(false);
+  const [isMobileVideoCollapsed, setIsMobileVideoCollapsed] = useState(false);
   const sourceSubtitleLanguage = normalizeLocaleLanguage(
     analysis?.videoInfo.language
   );
@@ -590,6 +600,19 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   useEffect(() => {
     setSubtitleLanguage(getDefaultSubtitleLanguage(locale));
   }, [locale]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsMobileSearchExpanded(false);
+      setIsMobileVideoCollapsed(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (videoEmbedUrl) {
+      setIsMobileVideoCollapsed(false);
+    }
+  }, [videoEmbedUrl]);
 
   useEffect(() => {
     const viewport = chatScrollAreaRef.current?.querySelector(
@@ -1009,85 +1032,126 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       )}
     >
       <header className="bg-background/95 sticky top-0 z-20 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-4 px-4 py-3 lg:px-6 2xl:max-w-[1440px]">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
-                V
-              </div>
-              <div className="text-lg font-semibold tracking-tight">Cyline</div>
-            </div>
-
-            <div className="relative w-full xl:max-w-[520px]">
-              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
-              <Input
-                aria-label="video search"
-                className="border-primary bg-card focus-visible:border-primary h-10 rounded-xl pr-12 pl-10 shadow-xs focus-visible:ring-0"
-                value={inputUrl}
-                onChange={(event) => setInputUrl(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    void handleAnalyze();
-                  }
-                }}
-                placeholder={content.searchPlaceholder}
-              />
-              <button
-                type="button"
-                onClick={() => void handleAnalyze()}
-                aria-label={content.analyze}
-                disabled={isAnalyzing}
-                className="text-muted-foreground absolute top-1/2 right-3.5 -translate-y-1/2 disabled:opacity-100"
-              >
-                {isAnalyzing ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="size-4" />
+        <div className="mx-auto w-full max-w-[1360px] px-4 py-3 lg:px-6 2xl:max-w-[1440px]">
+          {isMobile ? (
+            <div className="relative h-10">
+              <div
+                className={cn(
+                  'absolute top-1/2 left-0 flex -translate-y-1/2 items-center gap-2.5 transition-all duration-300 ease-out',
+                  isMobileSearchExpanded &&
+                    '-translate-x-3 scale-95 opacity-0 pointer-events-none'
                 )}
-              </button>
-            </div>
+              >
+                <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
+                  V
+                </div>
+                <div className="text-base font-semibold tracking-tight">
+                  Cyline
+                </div>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <LocaleSelector type="button" />
-              <ThemeToggler className="border-border bg-card text-foreground hover:bg-muted inline-flex size-9 items-center justify-center rounded-lg border shadow-xs transition-colors [&_svg]:size-4" />
-              <TopMetric icon={Coins}>{content.credits}</TopMetric>
-              <div className="border-border flex size-9 items-center justify-center rounded-full border-2 bg-[var(--color-accent)] text-sm font-semibold text-white">
-                J
+              <div
+                className={cn(
+                  'absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-2 transition-[left,right,width,transform] duration-300 ease-out',
+                  isMobileSearchExpanded
+                    ? 'left-0 right-0 w-full'
+                    : 'left-[6.25rem] right-[3.75rem]'
+                )}
+              >
+                {isMobileSearchExpanded ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Collapse search"
+                    onClick={() => setIsMobileSearchExpanded(false)}
+                    className="bg-card border-border text-foreground hover:bg-muted size-10 shrink-0 rounded-full shadow-xs"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                ) : null}
+
+                <HeaderSearchBar
+                  inputUrl={inputUrl}
+                  isAnalyzing={isAnalyzing}
+                  searchPlaceholder={content.searchPlaceholder}
+                  analyzeLabel={content.analyze}
+                  onAnalyze={() => void handleAnalyze()}
+                  onChange={setInputUrl}
+                  onExpandedChange={setIsMobileSearchExpanded}
+                  className="flex-1"
+                  mobile
+                />
+              </div>
+
+              <div
+                className={cn(
+                  'absolute top-1/2 right-0 -translate-y-1/2 transition-all duration-300 ease-out',
+                  isMobileSearchExpanded &&
+                    'translate-x-3 scale-95 opacity-0 pointer-events-none'
+                )}
+              >
+                <VideoChatHeaderMenu />
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
+                    V
+                  </div>
+                  <div className="text-lg font-semibold tracking-tight">
+                    Cyline
+                  </div>
+                </div>
+
+                <VideoChatHeaderMenu />
+              </div>
+
+              <div className="w-full xl:max-w-[560px]">
+                <HeaderSearchBar
+                  inputUrl={inputUrl}
+                  isAnalyzing={isAnalyzing}
+                  searchPlaceholder={content.searchPlaceholder}
+                  analyzeLabel={content.analyze}
+                  onAnalyze={() => void handleAnalyze()}
+                  onChange={setInputUrl}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto grid min-h-[calc(100vh-65px)] w-full max-w-[1360px] xl:h-[calc(100vh-65px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]">
+      <main className="mx-auto flex min-h-[calc(100vh-65px)] w-full max-w-[1360px] flex-col xl:h-[calc(100vh-65px)] xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]">
+        {isMobile ? (
+          <div className="sticky top-[4.75rem] z-10 px-4 pb-4">
+            <MobileVideoDock
+              iframeRef={iframeRef}
+              title={analysis?.videoInfo.title || 'YouTube Player'}
+              videoEmbedUrl={videoEmbedUrl}
+              isCollapsed={isMobileVideoCollapsed}
+              collapseLabel={content.collapseVideo}
+              expandLabel={content.expandVideo}
+              onAnalyze={() => void handleAnalyze()}
+              onToggleCollapse={() =>
+                setIsMobileVideoCollapsed((current) => !current)
+              }
+            />
+          </div>
+        ) : null}
+
         <section className="min-w-0 px-4 pb-4 lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
           <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
-            <div className="bg-foreground relative shrink-0 overflow-hidden rounded-2xl shadow-sm">
-              {videoEmbedUrl ? (
-                <iframe
-                  ref={iframeRef}
-                  src={videoEmbedUrl}
-                  title={analysis?.videoInfo.title || 'YouTube Player'}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  className="aspect-video w-full"
-                />
-              ) : (
-                <div className="aspect-video w-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18))]" />
-              )}
-
-              {!videoEmbedUrl ? (
-                <button
-                  className="absolute top-1/2 left-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/15"
-                  type="button"
-                  aria-label="Play video"
-                  onClick={() => void handleAnalyze()}
-                >
-                  <Play className="size-7 fill-current" />
-                </button>
-              ) : null}
-            </div>
+            {!isMobile ? (
+              <VideoPlayerCard
+                iframeRef={iframeRef}
+                title={analysis?.videoInfo.title || 'YouTube Player'}
+                videoEmbedUrl={videoEmbedUrl}
+                onAnalyze={() => void handleAnalyze()}
+              />
+            ) : null}
 
             <Tabs
               defaultValue="captions"
@@ -1339,21 +1403,6 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   );
 }
 
-function TopMetric({
-  children,
-  icon: Icon,
-}: {
-  children: React.ReactNode;
-  icon: LucideIcon;
-}) {
-  return (
-    <div className="border-border bg-card text-foreground inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium shadow-xs">
-      <Icon className="text-primary size-3.5" />
-      <span>{children}</span>
-    </div>
-  );
-}
-
 function WorkspaceTabTrigger({
   value,
   label,
@@ -1376,6 +1425,169 @@ function WorkspaceTabTrigger({
       <Icon className="size-3.5" />
       {label}
     </TabsTrigger>
+  );
+}
+
+function HeaderSearchBar({
+  inputUrl,
+  isAnalyzing,
+  searchPlaceholder,
+  analyzeLabel,
+  onAnalyze,
+  onChange,
+  onExpandedChange,
+  className,
+  mobile = false,
+}: {
+  inputUrl: string;
+  isAnalyzing: boolean;
+  searchPlaceholder: string;
+  analyzeLabel: string;
+  onAnalyze: () => void;
+  onChange: (value: string) => void;
+  onExpandedChange?: (expanded: boolean) => void;
+  className?: string;
+  mobile?: boolean;
+}) {
+  return (
+    <div
+      className={cn('relative w-full', className)}
+      onFocusCapture={() => onExpandedChange?.(true)}
+      onBlurCapture={(event) => {
+        const nextTarget = event.relatedTarget as Node | null;
+        if (nextTarget && event.currentTarget.contains(nextTarget)) {
+          return;
+        }
+
+        onExpandedChange?.(false);
+      }}
+    >
+      <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
+      <Input
+        aria-label="video search"
+        className={cn(
+          'border-primary bg-card focus-visible:border-primary h-10 rounded-xl pr-12 pl-10 shadow-xs focus-visible:ring-0',
+          mobile
+            ? 'text-[13px] placeholder:text-[12px]'
+            : 'text-sm placeholder:text-sm'
+        )}
+        value={inputUrl}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            onAnalyze();
+          }
+        }}
+        placeholder={searchPlaceholder}
+      />
+      <button
+        type="button"
+        onClick={onAnalyze}
+        aria-label={analyzeLabel}
+        disabled={isAnalyzing}
+        className="text-muted-foreground absolute top-1/2 right-3.5 -translate-y-1/2 disabled:opacity-100"
+      >
+        {isAnalyzing ? (
+          <LoaderCircle className="size-4 animate-spin" />
+        ) : (
+          <ArrowRight className="size-4" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+function VideoPlayerCard({
+  iframeRef,
+  title,
+  videoEmbedUrl,
+  onAnalyze,
+}: {
+  iframeRef: RefObject<HTMLIFrameElement | null>;
+  title: string;
+  videoEmbedUrl: string | null;
+  onAnalyze: () => void;
+}) {
+  return (
+    <div className="bg-foreground relative shrink-0 overflow-hidden rounded-2xl shadow-sm">
+      {videoEmbedUrl ? (
+        <iframe
+          ref={iframeRef}
+          src={videoEmbedUrl}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className="aspect-video w-full"
+        />
+      ) : (
+        <div className="aspect-video w-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18))]" />
+      )}
+
+      {!videoEmbedUrl ? (
+        <button
+          className="absolute top-1/2 left-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/15"
+          type="button"
+          aria-label="Play video"
+          onClick={onAnalyze}
+        >
+          <Play className="size-7 fill-current" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function MobileVideoDock({
+  iframeRef,
+  title,
+  videoEmbedUrl,
+  isCollapsed,
+  collapseLabel,
+  expandLabel,
+  onAnalyze,
+  onToggleCollapse,
+}: {
+  iframeRef: RefObject<HTMLIFrameElement | null>;
+  title: string;
+  videoEmbedUrl: string | null;
+  isCollapsed: boolean;
+  collapseLabel: string;
+  expandLabel: string;
+  onAnalyze: () => void;
+  onToggleCollapse: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div
+        className={cn(
+          'overflow-hidden rounded-2xl transition-[max-height,opacity] duration-300',
+          isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[60vh] opacity-100'
+        )}
+      >
+        <VideoPlayerCard
+          iframeRef={iframeRef}
+          title={title}
+          videoEmbedUrl={videoEmbedUrl}
+          onAnalyze={onAnalyze}
+        />
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onToggleCollapse}
+        aria-expanded={!isCollapsed}
+        className="bg-background/96 border-border text-foreground h-9 w-full rounded-full shadow-xs backdrop-blur"
+      >
+        {isCollapsed ? expandLabel : collapseLabel}
+        {isCollapsed ? (
+          <ChevronDown className="size-4" />
+        ) : (
+          <ChevronUp className="size-4" />
+        )}
+      </Button>
+    </div>
   );
 }
 

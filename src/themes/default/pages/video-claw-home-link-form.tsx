@@ -54,8 +54,8 @@ export function VideoClawHomeLinkForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="border-border/70 min-w-0 border-b px-2 pb-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:gap-3">
+      <div className="border-border/70 min-w-0 border-b px-1 pb-3 sm:px-2 sm:pb-4">
         <input
           id="hero-link-input"
           name="hero-link"
@@ -65,22 +65,22 @@ export function VideoClawHomeLinkForm({
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder={placeholder}
-          className="placeholder:text-muted-foreground h-14 w-full bg-transparent text-base outline-none sm:h-16 sm:text-lg"
+          className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-[13px] placeholder:text-muted-foreground/65 sm:h-16 sm:text-lg sm:placeholder:text-base"
         />
       </div>
 
-      <div className="text-muted-foreground flex flex-wrap items-center gap-3 px-1 pt-1 text-xs">
+      <div className="text-muted-foreground flex flex-wrap items-center gap-2 px-1 pt-0 text-[11px] leading-none sm:gap-3 sm:pt-1 sm:text-xs">
         {supportedPlatforms.map((platform) => {
           const Icon = platform.icon;
 
           return (
             <span
               key={platform.name}
-              className="inline-flex items-center gap-2"
+              className="inline-flex items-center gap-1.5"
               aria-label={platform.name}
               title={platform.name}
             >
-              <Icon className={`h-4.5 w-4.5 ${platform.className}`} />
+              <Icon className={`h-4 w-4 ${platform.className} sm:h-4.5 sm:w-4.5`} />
             </span>
           );
         })}
@@ -88,9 +88,9 @@ export function VideoClawHomeLinkForm({
         <button
           type="submit"
           aria-label={submitLabel}
-          className="bg-primary text-primary-foreground focus-visible:ring-primary/30 ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground focus-visible:ring-primary/30 ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none sm:h-11 sm:w-11"
         >
-          <ArrowUp className="h-7 w-7" />
+          <ArrowUp className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
       </div>
     </form>

@@ -198,24 +198,24 @@ export default function VideoClawHome({
 }) {
   return (
     <main className="bg-background text-foreground">
-      <section className="px-6 pb-16 pt-32 lg:px-10 lg:pb-20 lg:pt-36">
-        <div className="mx-auto flex max-w-[1440px] flex-col items-center gap-8">
-          <h1 className="max-w-[900px] text-center text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-[56px]">
+      <section className="flex min-h-[calc(100svh-4.5rem)] items-center px-6 pb-12 pt-24 sm:pb-16 sm:pt-28 lg:min-h-0 lg:px-10 lg:pb-20 lg:pt-36">
+        <div className="mx-auto flex max-w-[1440px] flex-col items-center gap-5 sm:gap-6 lg:gap-8">
+          <h1 className="max-w-[15ch] text-center text-[1.75rem] font-bold leading-[1.15] tracking-tight text-balance sm:max-w-[820px] sm:text-5xl sm:leading-tight lg:max-w-[900px] lg:text-[56px]">
             {page.hero.title}
           </h1>
 
-          <p className="max-w-[760px] text-center text-base leading-7 text-muted-foreground sm:text-lg">
+          <p className="max-w-[680px] text-center text-sm leading-6 text-muted-foreground sm:max-w-[760px] sm:text-lg sm:leading-7">
             {page.hero.description}
           </p>
 
-          <div className="w-full max-w-[760px] rounded-3xl border-2 border-primary/90 bg-transparent p-3 shadow-[0_8px_32px_rgba(217,119,87,0.12)]">
+          <div className="w-full max-w-[760px] rounded-3xl border-2 border-primary/90 bg-transparent p-2.5 shadow-[0_8px_32px_rgba(217,119,87,0.12)] sm:p-3">
             <VideoClawHomeLinkForm
               placeholder={page.hero.input_placeholder}
               submitLabel={page.hero.primary_button.title}
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:gap-x-6">
             {page.hero.trust_items.map((item) => (
               <div
                 key={item}
