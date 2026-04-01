@@ -50,11 +50,6 @@ type PrincipleCard = {
   description: string;
 };
 
-type DemoHit = {
-  time: string;
-  label: string;
-};
-
 type HomePageData = {
   hero: {
     badge: string;
@@ -70,16 +65,6 @@ type HomePageData = {
     eyebrow: string;
     title: string;
     description: string;
-    browser_url: string;
-    search_label: string;
-    search_terms: string[];
-    search_hint: string;
-    hits_label: string;
-    hits: DemoHit[];
-    chat_label: string;
-    chat_title: string;
-    chat_answer: string;
-    player_caption: string;
   };
   use_cases: {
     eyebrow: string;
@@ -242,97 +227,13 @@ export default function VideoClawHome({
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-[28px] border border-border bg-card shadow-[0_12px_48px_rgba(29,25,23,0.08)]">
-            <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-3">
-              <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-              <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
-              <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-              <div className="flex flex-1 justify-center">
-                <div className="inline-flex items-center gap-2 rounded-md bg-background px-3 py-1 text-xs text-muted-foreground">
-                  <CirclePlay className="h-3.5 w-3.5" />
-                  {page.demo.browser_url}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid min-h-[560px] lg:grid-cols-[320px_1fr]">
-              <aside className="border-b border-border bg-muted p-5 lg:border-b-0 lg:border-r">
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-sm font-semibold">{page.demo.search_label}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {page.demo.search_terms.map((term) => (
-                        <span
-                          key={term}
-                          className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground"
-                        >
-                          {term}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      {page.demo.search_hint}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold">{page.demo.hits_label}</p>
-                    <div className="mt-3 space-y-3">
-                      {page.demo.hits.map((hit) => (
-                        <div
-                          key={`${hit.time}-${hit.label}`}
-                          className="rounded-xl border border-border bg-card p-3"
-                        >
-                          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
-                            {hit.time}
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                            {hit.label}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </aside>
-
-              <div className="flex flex-col gap-5 p-5">
-                <div className="relative flex min-h-[320px] flex-1 items-center justify-center rounded-2xl bg-foreground">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15">
-                    <CirclePlay className="h-9 w-9 text-primary-foreground" />
-                  </div>
-                  <div className="absolute bottom-4 left-4 right-4 h-1 rounded-full bg-white/15">
-                    <div className="h-1 w-[42%] rounded-full bg-primary" />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-sm font-semibold">{page.demo.chat_label}</p>
-                    <h3 className="mt-3 text-lg font-semibold">
-                      {page.demo.chat_title}
-                    </h3>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      {page.demo.chat_answer}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-sm font-semibold">{page.demo.player_caption}</p>
-                    <div className="mt-4 space-y-3">
-                      {page.demo.hits.slice(0, 2).map((hit) => (
-                        <div
-                          key={`caption-${hit.time}`}
-                          className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground"
-                        >
-                          <span className="font-semibold text-foreground">
-                            {hit.time}
-                          </span>{' '}
-                          {hit.label}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+          <div className="overflow-hidden rounded-[28px] border border-border bg-card p-4 shadow-[0_12px_48px_rgba(29,25,23,0.08)] sm:p-5 lg:p-6">
+            <div className="relative aspect-video overflow-hidden rounded-[24px] border border-border bg-[radial-gradient(circle_at_top,rgba(217,119,87,0.22),transparent_32%),linear-gradient(135deg,rgba(38,32,29,0.98),rgba(24,21,19,0.92))]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:40px_40px] opacity-40" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_48%,rgba(0,0,0,0.28)_100%)]" />
+              <div className="relative flex h-full items-center justify-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm sm:h-24 sm:w-24">
+                  <CirclePlay className="h-9 w-9 text-white sm:h-11 sm:w-11" />
                 </div>
               </div>
             </div>

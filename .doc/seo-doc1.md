@@ -1,0 +1,63 @@
+# VideoClaw SEO Strategy & Content Document
+
+- -This document outlines the SEO structure and copy for **VideoClaw** (video-claw.cloud), focusing on core keywords while emphasizing our unique value proposition: _Search, Trace, and Learn._
+- ***
+- -## 1. TDH (Title, Description, Header)
+- -### Primary SEO Target
+  -- **Title:** YouTube Transcript Search & AI Video Summary for Learning | VideoClaw
+  -- **Description:** Get instant AI video summaries, search YouTube transcripts for exact moments, jump to timestamps, and ask AI follow-up questions. Turn any YouTube video into a searchable learning interface with VideoClaw.
+  -- **H1:** Search Inside YouTube Videos and Get Instant AI Summaries
+- ***
+- -## 2. Core Features (H2 & H3)
+- -### H2: The Ultimate AI YouTube Video Summarizer & Search Tool
+  -VideoClaw is not just another summary tool; it's a comprehensive learning copilot that helps you navigate long-form content efficiently.
+- -#### H3: Instant YouTube AI Summary with ChatGPT
+  -Get a concise, structured **youtube ai summary** in seconds. Our AI analyzes the entire transcript to provide you with key takeaways, allowing you to understand the core message without watching the whole video.
+- -#### H3: Search Inside YouTube Videos by Keywords
+  -Tired of scrolling? Use our **youtube transcript search** to find the exact moment a topic is mentioned. VideoClaw makes every word searchable, helping you find "hidden gems" in long tutorials or lectures.
+- -#### H3: Interactive Chat with YouTube Video AI
+  -Go beyond the summary. Use **youtube summary with chatgpt** capabilities to ask specific questions about the content. Get transcript-grounded answers and clarify complex concepts instantly.
+- -#### H3: Precise Timestamp Navigation & Tracing
+  -Every search result and AI answer is linked to a specific timestamp. Click to jump directly to the moment in the video, ensuring you always have the original context for your learning.
+- ***
+- -## 3. HOW TO: Master Long Videos with VideoClaw (H2)
+- -Follow these simple steps to transform how you learn from YouTube:
+- -1. **Paste the Link:** Copy and paste any YouTube video URL into the VideoClaw search bar.
+  -2. **Generate AI Summary:** Click "Summarize" to get an instant **ai youtube video summarizer** report.
+  -3. **Search the Transcript:** Enter keywords in the search box to locate specific parts of the video.
+  -4. **Ask AI Questions:** Use the chat interface to **ask questions about the YouTube video**.
+  -5. **Jump to Timestamps:** Click on any highlighted text or search result to play the video from that exact moment.
+- ***
+- -## 4. Why Choose VideoClaw for YouTube Summaries? (H2)
+- -### H3: Efficient Learning from Long Videos
+  -Stop wasting time on fluff. VideoClaw helps you **learn from YouTube videos** by focusing on the parts that matter most to you.
+- -### H3: Deep Insights with YouTube Summary AI
+  -Our advanced **youtube summary ai** doesn't just scratch the surface. It provides deep, contextual insights that help you master complex subjects faster.
+- -### H3: Better than a Standard YouTube Video Summary
+  -While other tools just give you text, VideoClaw gives you an interactive interface. It’s a **youtube summary** you can actually talk to and search through.
+- ***
+- -## 5. FAQ: Everything You Need to Know About AI Video Summaries (H2)
+- -### H3: How does VideoClaw generate a YouTube summary?
+  -VideoClaw uses advanced LLMs (like ChatGPT) to analyze the **youtube transcript** and extract the most important information, creating a structured and easy-to-read summary.
+- -### H3: Is it possible to search inside a YouTube video?
+  -Yes! VideoClaw features a powerful **youtube transcript search** engine that allows you to find any keyword or phrase within a video and jump to its exact timestamp.
+- -### H3: Can I chat with a YouTube video using AI?
+  -Absolutely. Our **chat with youtube video** feature allows you to ask the AI questions based on the video's content, making it perfect for students, researchers, and lifelong learners.
+- -### H3: Is VideoClaw free to use for YouTube AI summaries?
+  -We offer a generous free tier for users to experience the power of our **ai youtube video summarizer**. For heavy users and professionals, we have premium plans with expanded limits.
+- -### H3: How to get a YouTube summary with ChatGPT using VideoClaw?
+  -Simply enter the video URL on our homepage. VideoClaw integrates **youtube summary with chatgpt** technology to deliver the most accurate and helpful summaries available.
+- ***
+- -## 6. Keyword Density Check
+- -This document strategically incorporates the following core keywords:
+  -- `youtube ai summary`
+  -- `youtube summary`
+  -- `youtube summary with chatgpt`
+  -- `youtube summary ai`
+  -- `youtube video summary`
+  -- `ai youtube video summarizer`
+  -- `youtube transcript search`
+  -- `search inside youtube videos`
+  -- `chat with youtube video`
+  -- `ask questions about youtube video`
+  -- `learn from youtube videos`

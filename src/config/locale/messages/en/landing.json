@@ -30,7 +30,7 @@
     "buttons": [
       {
         "title": "Get Started",
-        "url": "/chat",
+        "url": "/video/chat",
         "target": "_self",
         "variant": "default"
       }
@@ -69,7 +69,7 @@
             },
             {
               "title": "Workspace",
-              "url": "/chat",
+              "url": "/video/chat",
               "target": "_self"
             }
           ]
