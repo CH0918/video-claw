@@ -34,6 +34,7 @@ import {
   Play,
   Search,
   Share2,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -42,6 +43,13 @@ import { toast } from 'sonner';
 import { localeNames, locales } from '@/config/locale';
 import { Button } from '@/shared/components/ui/button';
 import { ClaudeCodeLoading } from '@/shared/components/ui/claude-code-loading';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/shared/components/ui/drawer';
 import { Input } from '@/shared/components/ui/input';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Switch } from '@/shared/components/ui/switch';
@@ -107,6 +115,9 @@ type VideoChatCopy = {
   notes: string;
   notesBody: string;
   notesHeading: string;
+  pasteLink: string;
+  pasteLinkFailed: string;
+  pasteLinkSuccess: string;
   prompts: string[];
   searchPlaceholder: string;
   sendFailed: string;
@@ -487,6 +498,9 @@ function buildVideoChatCopy(
     notes: t('notes'),
     notesBody: t('notesBody'),
     notesHeading: t('notesHeading'),
+    pasteLink: t('pasteLink'),
+    pasteLinkFailed: t('pasteLinkFailed'),
+    pasteLinkSuccess: t('pasteLinkSuccess'),
     prompts: t.raw('prompts') as string[],
     searchPlaceholder: t('searchPlaceholder'),
     sendFailed: t('sendFailed'),
@@ -1028,151 +1042,155 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     <div
       className={cn(
         spaceGrotesk.className,
-        'bg-background text-foreground min-h-screen'
+        'bg-background text-foreground',
+        isMobile ? 'h-dvh overflow-hidden' : 'min-h-screen'
       )}
     >
       <header className="bg-background/95 sticky top-0 z-20 backdrop-blur">
         <div className="mx-auto w-full max-w-[1360px] px-4 py-3 lg:px-6 2xl:max-w-[1440px]">
-          {isMobile ? (
-            <div className="relative h-10">
-              <div
-                className={cn(
-                  'absolute top-1/2 left-0 flex -translate-y-1/2 items-center gap-2.5 transition-all duration-300 ease-out',
-                  isMobileSearchExpanded &&
-                    '-translate-x-3 scale-95 opacity-0 pointer-events-none'
-                )}
-              >
-                <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
-                  V
-                </div>
-                <div className="text-base font-semibold tracking-tight">
-                  Cyline
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  'absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-2 transition-[left,right,width,transform] duration-300 ease-out',
-                  isMobileSearchExpanded
-                    ? 'left-0 right-0 w-full'
-                    : 'left-[6.25rem] right-[3.75rem]'
-                )}
-              >
-                {isMobileSearchExpanded ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label="Collapse search"
-                    onClick={() => setIsMobileSearchExpanded(false)}
-                    className="bg-card border-border text-foreground hover:bg-muted size-10 shrink-0 rounded-full shadow-xs"
-                  >
-                    <ChevronLeft className="size-4" />
-                  </Button>
-                ) : null}
+          <div className="min-h-10 md:hidden">
+            {isMobileSearchExpanded ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Collapse search"
+                  onClick={() => setIsMobileSearchExpanded(false)}
+                  className="bg-card border-border text-foreground hover:bg-muted size-10 shrink-0 rounded-full shadow-xs"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
 
                 <HeaderSearchBar
                   inputUrl={inputUrl}
                   isAnalyzing={isAnalyzing}
                   searchPlaceholder={content.searchPlaceholder}
                   analyzeLabel={content.analyze}
+                  pasteLabel={content.pasteLink}
+                  pasteSuccessLabel={content.pasteLinkSuccess}
+                  pasteFailedLabel={content.pasteLinkFailed}
                   onAnalyze={() => void handleAnalyze()}
                   onChange={setInputUrl}
-                  onExpandedChange={setIsMobileSearchExpanded}
                   className="flex-1"
                   mobile
+                  expanded
                 />
               </div>
-
-              <div
-                className={cn(
-                  'absolute top-1/2 right-0 -translate-y-1/2 transition-all duration-300 ease-out',
-                  isMobileSearchExpanded &&
-                    'translate-x-3 scale-95 opacity-0 pointer-events-none'
-                )}
-              >
-                <VideoChatHeaderMenu />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
                   <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
                     V
                   </div>
-                  <div className="text-lg font-semibold tracking-tight">
+                  <div className="truncate text-base font-semibold tracking-tight">
                     Cyline
                   </div>
                 </div>
 
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={content.searchPlaceholder}
+                  onClick={() => setIsMobileSearchExpanded(true)}
+                  className="bg-card border-border text-foreground hover:bg-muted size-10 shrink-0 rounded-full shadow-xs"
+                >
+                  <Search className="size-4" />
+                </Button>
+
                 <VideoChatHeaderMenu />
               </div>
+            )}
+          </div>
 
-              <div className="w-full xl:max-w-[560px]">
-                <HeaderSearchBar
-                  inputUrl={inputUrl}
-                  isAnalyzing={isAnalyzing}
-                  searchPlaceholder={content.searchPlaceholder}
-                  analyzeLabel={content.analyze}
-                  onAnalyze={() => void handleAnalyze()}
-                  onChange={setInputUrl}
-                />
+          <div className="hidden flex-col gap-4 md:flex">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
+                  V
+                </div>
+                <div className="text-lg font-semibold tracking-tight">
+                  Cyline
+                </div>
               </div>
+
+              <VideoChatHeaderMenu />
             </div>
-          )}
+
+            <div className="w-full xl:max-w-[560px]">
+              <HeaderSearchBar
+                inputUrl={inputUrl}
+                isAnalyzing={isAnalyzing}
+                searchPlaceholder={content.searchPlaceholder}
+                analyzeLabel={content.analyze}
+                pasteLabel={content.pasteLink}
+                pasteSuccessLabel={content.pasteLinkSuccess}
+                pasteFailedLabel={content.pasteLinkFailed}
+                onAnalyze={() => void handleAnalyze()}
+                onChange={setInputUrl}
+              />
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto flex min-h-[calc(100vh-65px)] w-full max-w-[1360px] flex-col xl:h-[calc(100vh-65px)] xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]">
+      <main
+        className={cn(
+          'mx-auto w-full max-w-[1360px] 2xl:max-w-[1440px]',
+          isMobile
+            ? 'flex h-[calc(100dvh-65px)] flex-col overflow-hidden'
+            : 'flex min-h-[calc(100vh-65px)] flex-col xl:h-[calc(100vh-65px)] xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden'
+        )}
+      >
         {isMobile ? (
-          <div className="sticky top-[4.75rem] z-10 px-4 pb-4">
-            <MobileVideoDock
-              iframeRef={iframeRef}
-              title={analysis?.videoInfo.title || 'YouTube Player'}
-              videoEmbedUrl={videoEmbedUrl}
-              isCollapsed={isMobileVideoCollapsed}
-              collapseLabel={content.collapseVideo}
-              expandLabel={content.expandVideo}
-              onAnalyze={() => void handleAnalyze()}
-              onToggleCollapse={() =>
-                setIsMobileVideoCollapsed((current) => !current)
-              }
-            />
-          </div>
-        ) : null}
-
-        <section className="min-w-0 px-4 pb-4 lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
-          <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
-            {!isMobile ? (
-              <VideoPlayerCard
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4">
+            <div className="shrink-0 pb-4">
+              <MobileVideoDock
                 iframeRef={iframeRef}
                 title={analysis?.videoInfo.title || 'YouTube Player'}
                 videoEmbedUrl={videoEmbedUrl}
+                isCollapsed={isMobileVideoCollapsed}
+                collapseLabel={content.collapseVideo}
+                expandLabel={content.expandVideo}
                 onAnalyze={() => void handleAnalyze()}
+                onToggleCollapse={() =>
+                  setIsMobileVideoCollapsed((current) => !current)
+                }
               />
-            ) : null}
+            </div>
 
-            <Tabs
-              defaultValue="captions"
-              className="flex min-h-0 flex-1 flex-col"
-            >
-              <TabsList className="bg-muted text-muted-foreground inline-flex h-10 w-fit shrink-0 items-center justify-start rounded-xl p-1">
+              <Tabs
+                defaultValue="captions"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              >
+              <TabsList className="bg-muted text-muted-foreground h-auto w-full shrink-0 justify-start gap-1 overflow-x-auto rounded-xl p-0.5">
                 <WorkspaceTabTrigger
                   value="captions"
                   icon={Captions}
                   label={content.captions}
+                  compact
+                  className="min-w-[84px]"
                 />
                 <WorkspaceTabTrigger
                   value="summary"
                   icon={List}
                   label={content.summary}
+                  compact
+                  className="min-w-[84px]"
+                />
+                <WorkspaceTabTrigger
+                  value="chat"
+                  icon={MessageSquare}
+                  label={content.chat}
+                  compact
+                  className="min-w-[84px]"
                 />
               </TabsList>
 
               <TabsContent
                 value="captions"
-                className="mt-4 min-h-0 flex-1 outline-none"
+                className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
               >
                 <CaptionsPanel
                   transcriptKey={analysis?.analysisId || analysisId}
@@ -1198,7 +1216,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
               <TabsContent
                 value="summary"
-                className="mt-4 min-h-0 flex-1 outline-none"
+                className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
               >
                 <SummaryPanel
                   content={content}
@@ -1207,189 +1225,181 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                     analysisState === 'submitting' ||
                     analysisState === 'polling'
                   }
+                  mobile
+                  onTimestampClick={seekTo}
+                />
+              </TabsContent>
+
+              <TabsContent
+                value="chat"
+                className="mt-3 min-h-0 flex-1 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:h-full data-[state=active]:flex-col"
+              >
+                <ChatPanel
+                  chatInput={chatInput}
+                  chatInputPlaceholder={chatInputPlaceholder}
+                  chatMessages={chatMessages}
+                  chatModel={chatModel}
+                  chatScrollAreaRef={chatScrollAreaRef}
+                  content={content}
+                  isChatLoading={isChatLoading}
+                  analysisState={analysisState}
+                  mobile
+                  selectedSkill={selectedSkill}
+                  onChatInputChange={setChatInput}
+                  onChatModelChange={setChatModel}
+                  onClearChatInput={() => setChatInput('')}
+                  onCopyChatExport={() =>
+                    navigator.clipboard?.writeText(chatExportText)
+                  }
+                  onSendChat={() => void handleSendChat()}
+                  onSkillSelect={(value) => void handleSkillSelect(value)}
                   onTimestampClick={seekTo}
                 />
               </TabsContent>
             </Tabs>
           </div>
-        </section>
+        ) : (
+          <>
+            <section className="min-w-0 px-4 pb-4 lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
+              <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
+                <VideoPlayerCard
+                  iframeRef={iframeRef}
+                  title={analysis?.videoInfo.title || 'YouTube Player'}
+                  videoEmbedUrl={videoEmbedUrl}
+                  onAnalyze={() => void handleAnalyze()}
+                />
 
-        <aside className="border-border bg-card min-h-0 border-t xl:h-full xl:overflow-hidden xl:border-t-0 xl:border-l">
-          <Tabs
-            defaultValue="chat"
-            className="flex h-full min-h-[720px] flex-col xl:min-h-0"
-          >
-            <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-3 xl:gap-2.5 xl:overflow-visible">
-              <WorkspaceTabTrigger
-                value="chat"
-                icon={MessageSquare}
-                label={content.chat}
-                className="min-w-[96px] xl:w-full xl:min-w-0"
-              />
-              <WorkspaceTabTrigger
-                value="mindmap"
-                icon={GitBranch}
-                label={content.mindMap}
-                className="min-w-[110px] xl:w-full xl:min-w-0"
-              />
-              <WorkspaceTabTrigger
-                value="notes"
-                icon={NotebookPen}
-                label={content.notes}
-                className="min-w-[96px] xl:w-full xl:min-w-0"
-              />
-            </TabsList>
-
-            <TabsContent
-              value="chat"
-              className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
-            >
-              <ScrollArea
-                ref={chatScrollAreaRef}
-                className="min-h-0 flex-1 px-5 py-5"
-              >
-                <div className="space-y-4 pb-4">
-                  {chatMessages.length > 0 ? (
-                    chatMessages.map((message, index) => (
-                      <ChatBubble
-                        key={`${message.role}-${index}`}
-                        copyFailedLabel={content.copyReplyFailed}
-                        copyLabel={content.copyReply}
-                        copySuccessLabel={content.copyReplySuccess}
-                        message={message}
-                        onTimestampClick={seekTo}
-                        streamingLabel={content.chatStreaming}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-muted-foreground text-sm leading-7">
-                      {content.emptyChat}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-
-              <div className="border-border space-y-3 border-t px-5 py-4">
-                <div className="space-y-3 px-1 pt-1">
-                  <div className="border-border bg-card rounded-[24px] border px-4 py-3 shadow-xs">
-                    <Textarea
-                      aria-label="Ask anything about this video"
-                      rows={2}
-                      maxLength={5000}
-                      value={chatInput}
-                      onChange={(event) => setChatInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' || event.shiftKey) {
-                          return;
-                        }
-
-                        event.preventDefault();
-                        if (analysisState === 'ready' && !isChatLoading) {
-                          void handleSendChat();
-                        }
-                      }}
-                      className="text-foreground min-h-20 resize-none border-0 !bg-transparent px-0 py-0 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                      placeholder={chatInputPlaceholder}
+                <Tabs
+                  defaultValue="captions"
+                  className="flex min-h-0 flex-1 flex-col"
+                >
+                  <TabsList className="bg-muted text-muted-foreground inline-flex h-10 w-fit shrink-0 items-center justify-start rounded-xl p-1">
+                    <WorkspaceTabTrigger
+                      value="captions"
+                      icon={Captions}
+                      label={content.captions}
                     />
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <div className="relative">
-                        <select
-                          aria-label="Skill"
-                          value={selectedSkill}
-                          onChange={(event) =>
-                            void handleSkillSelect(event.target.value)
-                          }
-                          className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[132px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
-                        >
-                          <option value="">Skill</option>
-                          {content.prompts.map((prompt) => (
-                            <option key={prompt} value={prompt}>
-                              {prompt}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
-                      </div>
+                    <WorkspaceTabTrigger
+                      value="summary"
+                      icon={List}
+                      label={content.summary}
+                    />
+                  </TabsList>
 
-                      <div className="relative">
-                        <select
-                          aria-label={content.modelLabel}
-                          value={chatModel}
-                          onChange={(event) =>
-                            setChatModel(
-                              event.target.value as SupportedAIModelId
-                            )
-                          }
-                          className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
-                        >
-                          {SUPPORTED_AI_MODELS.map((modelOption) => (
-                            <option key={modelOption.id} value={modelOption.id}>
-                              {modelOption.title}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
-                      </div>
+                  <TabsContent
+                    value="captions"
+                    className="mt-4 min-h-0 flex-1 outline-none"
+                  >
+                <CaptionsPanel
+                  transcriptKey={analysis?.analysisId || analysisId}
+                  content={content}
+                  activeSubtitleIndex={activeSubtitleIndex}
+                  displayedSubtitleItems={subtitleItems}
+                  isBilingualCaptions={isBilingualCaptions}
+                  isSubtitleTranslating={isSubtitleTranslating}
+                  mobile
+                  subtitleLanguage={subtitleLanguage}
+                  subtitleLanguages={subtitleLanguages}
+                  onToggleBilingual={() =>
+                        setIsBilingualCaptions((current) => !current)
+                      }
+                      onSubtitleLanguageChange={(value) => {
+                        setSubtitleLanguage(value);
+                        void ensureSubtitleTranslation(value);
+                      }}
+                      onSeekToTimestamp={seekTo}
+                      onCopySubtitles={handleCopySubtitles}
+                      onDownloadSubtitles={handleDownloadSubtitles}
+                    />
+                  </TabsContent>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Copy"
-                        onClick={() =>
-                          navigator.clipboard?.writeText(chatExportText)
-                        }
-                        className="text-muted-foreground hover:text-foreground size-10 rounded-full"
-                      >
-                        <Clipboard className="size-5" />
-                      </Button>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Clear"
-                        onClick={() => setChatInput('')}
-                        className="text-muted-foreground hover:text-foreground size-10 rounded-full"
-                      >
-                        <Eraser className="size-5" />
-                      </Button>
-
-                      <Button
-                        size="icon"
-                        type="button"
-                        aria-label="Send message"
-                        disabled={analysisState !== 'ready' || isChatLoading}
-                        onClick={() => void handleSendChat()}
-                        className={cn(
-                          'ml-auto size-10 rounded-full',
-                          chatInput.trim()
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'bg-primary/20 text-primary hover:bg-primary/25'
-                        )}
-                      >
-                        <ArrowUp className="size-4.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                  <TabsContent
+                    value="summary"
+                    className="mt-4 min-h-0 flex-1 outline-none"
+                  >
+                    <SummaryPanel
+                      content={content}
+                      analysis={analysis}
+                      isLoading={
+                        analysisState === 'submitting' ||
+                        analysisState === 'polling'
+                      }
+                      onTimestampClick={seekTo}
+                    />
+                  </TabsContent>
+                </Tabs>
               </div>
-            </TabsContent>
+            </section>
 
-            <SidebarContent
-              value="mindmap"
-              title={content.mindMapHeading}
-              body={content.mindMapBody}
-              icon={GitBranch}
-            />
-            <SidebarContent
-              value="notes"
-              title={content.notesHeading}
-              body={content.notesBody}
-              icon={NotebookPen}
-            />
-          </Tabs>
-        </aside>
+            <aside className="border-border bg-card min-h-0 border-t xl:h-full xl:overflow-hidden xl:border-t-0 xl:border-l">
+              <Tabs
+                defaultValue="chat"
+                className="flex h-full min-h-[720px] flex-col xl:min-h-0"
+              >
+                <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-1 xl:gap-2.5 xl:overflow-visible">
+                  <WorkspaceTabTrigger
+                    value="chat"
+                    icon={MessageSquare}
+                    label={content.chat}
+                    className="min-w-[96px] xl:w-full xl:min-w-0"
+                  />
+                  {/* <WorkspaceTabTrigger
+                    value="mindmap"
+                    icon={GitBranch}
+                    label={content.mindMap}
+                    className="min-w-[110px] xl:w-full xl:min-w-0"
+                  />
+                  <WorkspaceTabTrigger
+                    value="notes"
+                    icon={NotebookPen}
+                    label={content.notes}
+                    className="min-w-[96px] xl:w-full xl:min-w-0"
+                  /> */}
+                </TabsList>
+
+                <TabsContent
+                  value="chat"
+                  className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
+                >
+                  <ChatPanel
+                    chatInput={chatInput}
+                    chatInputPlaceholder={chatInputPlaceholder}
+                  chatMessages={chatMessages}
+                  chatModel={chatModel}
+                  chatScrollAreaRef={chatScrollAreaRef}
+                  content={content}
+                  isChatLoading={isChatLoading}
+                  analysisState={analysisState}
+                  mobile={false}
+                  selectedSkill={selectedSkill}
+                  onChatInputChange={setChatInput}
+                  onChatModelChange={setChatModel}
+                    onClearChatInput={() => setChatInput('')}
+                    onCopyChatExport={() =>
+                      navigator.clipboard?.writeText(chatExportText)
+                    }
+                    onSendChat={() => void handleSendChat()}
+                    onSkillSelect={(value) => void handleSkillSelect(value)}
+                    onTimestampClick={seekTo}
+                  />
+                </TabsContent>
+
+                {/* <SidebarContent
+                  value="mindmap"
+                  title={content.mindMapHeading}
+                  body={content.mindMapBody}
+                  icon={GitBranch}
+                />
+                <SidebarContent
+                  value="notes"
+                  title={content.notesHeading}
+                  body={content.notesBody}
+                  icon={NotebookPen}
+                /> */}
+              </Tabs>
+            </aside>
+          </>
+        )}
       </main>
 
       {errorMessage ? (
@@ -1407,22 +1417,26 @@ function WorkspaceTabTrigger({
   value,
   label,
   icon: Icon,
+  compact = false,
   className,
 }: {
   value: string;
   label: string;
   icon: LucideIcon;
+  compact?: boolean;
   className?: string;
 }) {
   return (
     <TabsTrigger
       value={value}
       className={cn(
-        'h-9 rounded-lg px-4 text-[13px] font-medium data-[state=active]:shadow-xs',
+        compact
+          ? 'h-8 rounded-md px-3 text-[12px] font-medium data-[state=active]:shadow-xs'
+          : 'h-9 rounded-lg px-4 text-[13px] font-medium data-[state=active]:shadow-xs',
         className
       )}
     >
-      <Icon className="size-3.5" />
+      <Icon className={cn(compact ? 'size-3' : 'size-3.5')} />
       {label}
     </TabsTrigger>
   );
@@ -1433,40 +1447,56 @@ function HeaderSearchBar({
   isAnalyzing,
   searchPlaceholder,
   analyzeLabel,
+  pasteLabel,
+  pasteSuccessLabel,
+  pasteFailedLabel,
   onAnalyze,
   onChange,
-  onExpandedChange,
   className,
   mobile = false,
+  expanded = false,
 }: {
   inputUrl: string;
   isAnalyzing: boolean;
   searchPlaceholder: string;
   analyzeLabel: string;
+  pasteLabel: string;
+  pasteSuccessLabel: string;
+  pasteFailedLabel: string;
   onAnalyze: () => void;
   onChange: (value: string) => void;
-  onExpandedChange?: (expanded: boolean) => void;
   className?: string;
   mobile?: boolean;
+  expanded?: boolean;
 }) {
-  return (
-    <div
-      className={cn('relative w-full', className)}
-      onFocusCapture={() => onExpandedChange?.(true)}
-      onBlurCapture={(event) => {
-        const nextTarget = event.relatedTarget as Node | null;
-        if (nextTarget && event.currentTarget.contains(nextTarget)) {
-          return;
-        }
+  async function handlePaste() {
+    if (!navigator.clipboard?.readText) {
+      toast.error(pasteFailedLabel);
+      return;
+    }
 
-        onExpandedChange?.(false);
-      }}
-    >
+    try {
+      const clipboardText = (await navigator.clipboard.readText()).trim();
+      if (!clipboardText) {
+        toast.error(pasteFailedLabel);
+        return;
+      }
+
+      onChange(clipboardText);
+      toast.success(pasteSuccessLabel);
+    } catch {
+      toast.error(pasteFailedLabel);
+    }
+  }
+
+  return (
+    <div className={cn('relative w-full', className)}>
       <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
       <Input
         aria-label="video search"
+        autoFocus={expanded}
         className={cn(
-          'border-primary bg-card focus-visible:border-primary h-10 rounded-xl pr-12 pl-10 shadow-xs focus-visible:ring-0',
+          'border-primary bg-card focus-visible:border-primary h-10 rounded-xl pr-20 pl-10 shadow-xs focus-visible:ring-0',
           mobile
             ? 'text-[13px] placeholder:text-[12px]'
             : 'text-sm placeholder:text-sm'
@@ -1481,6 +1511,14 @@ function HeaderSearchBar({
         }}
         placeholder={searchPlaceholder}
       />
+      <button
+        type="button"
+        onClick={() => void handlePaste()}
+        aria-label={pasteLabel}
+        className="text-muted-foreground hover:text-foreground absolute top-1/2 right-10 -translate-y-1/2"
+      >
+        <Clipboard className="size-4" />
+      </button>
       <button
         type="button"
         onClick={onAnalyze}
@@ -1591,19 +1629,335 @@ function MobileVideoDock({
   );
 }
 
+function ChatPanel({
+  chatInput,
+  chatInputPlaceholder,
+  chatMessages,
+  chatModel,
+  chatScrollAreaRef,
+  content,
+  isChatLoading,
+  analysisState,
+  mobile = false,
+  selectedSkill,
+  onChatInputChange,
+  onChatModelChange,
+  onClearChatInput,
+  onCopyChatExport,
+  onSendChat,
+  onSkillSelect,
+  onTimestampClick,
+}: {
+  chatInput: string;
+  chatInputPlaceholder: string;
+  chatMessages: Message[];
+  chatModel: SupportedAIModelId;
+  chatScrollAreaRef: RefObject<HTMLDivElement | null>;
+  content: VideoChatCopy;
+  isChatLoading: boolean;
+  analysisState: 'idle' | 'submitting' | 'polling' | 'ready' | 'error';
+  mobile?: boolean;
+  selectedSkill: string;
+  onChatInputChange: (value: string) => void;
+  onChatModelChange: (value: SupportedAIModelId) => void;
+  onClearChatInput: () => void;
+  onCopyChatExport: () => void;
+  onSendChat: () => void;
+  onSkillSelect: (value: string) => void;
+  onTimestampClick: (seconds: number) => void;
+}) {
+  const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
+
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          'border-border bg-card/80 flex min-h-0 flex-1 flex-col overflow-hidden border shadow-xs',
+          mobile ? 'rounded-[18px]' : 'rounded-none border-0 bg-transparent shadow-none'
+        )}
+      >
+        <ScrollArea
+          ref={chatScrollAreaRef}
+          className={cn(
+            'h-full min-h-0',
+            mobile ? 'px-3 py-3' : 'h-0 flex-1 px-5 py-5'
+          )}
+        >
+          <div className="space-y-4 pb-4">
+            {chatMessages.length > 0 ? (
+              chatMessages.map((message, index) => (
+              <ChatBubble
+                key={`${message.role}-${index}`}
+                copyFailedLabel={content.copyReplyFailed}
+                copyLabel={content.copyReply}
+                copySuccessLabel={content.copyReplySuccess}
+                message={message}
+                mobile={mobile}
+                onTimestampClick={onTimestampClick}
+                streamingLabel={content.chatStreaming}
+              />
+              ))
+            ) : (
+              <div className="text-muted-foreground text-sm leading-7">
+                {content.emptyChat}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      <div
+        className={cn(
+          'border-border shrink-0',
+          mobile ? 'py-2' : 'border-t space-y-3 px-5 py-4'
+        )}
+      >
+        <div className={cn(mobile ? '' : 'space-y-3 px-1 pt-1')}>
+          <div
+            className={cn(
+              'border-border bg-card w-full border shadow-xs',
+              mobile ? 'rounded-[18px] px-3 py-2' : 'rounded-[24px] px-4 py-3'
+            )}
+          >
+            <Textarea
+              aria-label="Ask anything about this video"
+              rows={mobile ? 1 : 2}
+              maxLength={5000}
+              value={chatInput}
+              onChange={(event) => onChatInputChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || event.shiftKey) {
+                  return;
+                }
+
+                event.preventDefault();
+                if (analysisState === 'ready' && !isChatLoading) {
+                  onSendChat();
+                }
+              }}
+              className={cn(
+                'text-foreground resize-none border-0 !bg-transparent px-0 py-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                mobile
+                  ? 'min-h-10 text-sm placeholder:text-[11px]'
+                  : 'min-h-20 text-base placeholder:text-sm'
+              )}
+              placeholder={chatInputPlaceholder}
+            />
+            {mobile ? (
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsActionDrawerOpen(true)}
+                  className="border-border bg-background text-foreground h-8 flex-1 justify-center rounded-full px-3 text-[11px] font-medium shadow-none"
+                >
+                  <SlidersHorizontal className="size-3.5" />
+                  更多操作
+                </Button>
+
+                <Button
+                  size="icon"
+                  type="button"
+                  aria-label="Send message"
+                  disabled={analysisState !== 'ready' || isChatLoading}
+                  onClick={onSendChat}
+                  className={cn(
+                    'size-8 shrink-0 rounded-full',
+                    chatInput.trim()
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-primary/20 text-primary hover:bg-primary/25'
+                  )}
+                >
+                  <ArrowUp className="size-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <select
+                    aria-label="Skill"
+                    value={selectedSkill}
+                    onChange={(event) => onSkillSelect(event.target.value)}
+                    className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[132px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
+                  >
+                    <option value="">Skill</option>
+                    {content.prompts.map((prompt) => (
+                      <option key={prompt} value={prompt}>
+                        {prompt}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
+                </div>
+
+                <div className="relative">
+                  <select
+                    aria-label={content.modelLabel}
+                    value={chatModel}
+                    onChange={(event) =>
+                      onChatModelChange(event.target.value as SupportedAIModelId)
+                    }
+                    className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
+                  >
+                    {SUPPORTED_AI_MODELS.map((modelOption) => (
+                      <option key={modelOption.id} value={modelOption.id}>
+                        {modelOption.title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Copy"
+                  onClick={onCopyChatExport}
+                  className="text-muted-foreground hover:text-foreground size-10 rounded-full"
+                >
+                  <Clipboard className="size-5" />
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Clear"
+                  onClick={onClearChatInput}
+                  className="text-muted-foreground hover:text-foreground size-10 rounded-full"
+                >
+                  <Eraser className="size-5" />
+                </Button>
+
+                <Button
+                  size="icon"
+                  type="button"
+                  aria-label="Send message"
+                  disabled={analysisState !== 'ready' || isChatLoading}
+                  onClick={onSendChat}
+                  className={cn(
+                    'ml-auto size-10 rounded-full',
+                    chatInput.trim()
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-primary/20 text-primary hover:bg-primary/25'
+                  )}
+                >
+                  <ArrowUp className="size-4.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {mobile ? (
+        <Drawer open={isActionDrawerOpen} onOpenChange={setIsActionDrawerOpen}>
+          <DrawerContent className="rounded-t-[28px]">
+            <DrawerHeader className="text-left">
+              <DrawerTitle className="text-base">聊天操作</DrawerTitle>
+              <DrawerDescription>
+                选择 Skill、模型，或执行复制与清空操作。
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <div className="space-y-4 px-4 pb-6">
+              <div className="space-y-2">
+                <label className="text-foreground text-xs font-medium">
+                  Skill
+                </label>
+                <div className="relative">
+                  <select
+                    aria-label="Skill"
+                    value={selectedSkill}
+                    onChange={(event) => {
+                      onSkillSelect(event.target.value);
+                      setIsActionDrawerOpen(false);
+                    }}
+                    className="border-border bg-background text-foreground focus-visible:border-primary h-11 w-full appearance-none rounded-2xl border py-0 pr-10 pl-4 text-sm font-medium shadow-none outline-none focus-visible:ring-0"
+                  >
+                    <option value="">Skill</option>
+                    {content.prompts.map((prompt) => (
+                      <option key={prompt} value={prompt}>
+                        {prompt}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-foreground text-xs font-medium">
+                  {content.modelLabel}
+                </label>
+                <div className="relative">
+                  <select
+                    aria-label={content.modelLabel}
+                    value={chatModel}
+                    onChange={(event) =>
+                      onChatModelChange(event.target.value as SupportedAIModelId)
+                    }
+                    className="border-border bg-background text-foreground focus-visible:border-primary h-11 w-full appearance-none rounded-2xl border py-0 pr-10 pl-4 text-sm font-medium shadow-none outline-none focus-visible:ring-0"
+                  >
+                    {SUPPORTED_AI_MODELS.map((modelOption) => (
+                      <option key={modelOption.id} value={modelOption.id}>
+                        {modelOption.title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCopyChatExport}
+                  className="h-10 rounded-xl"
+                >
+                  <Clipboard className="size-4" />
+                  Copy
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClearChatInput}
+                  className="h-10 rounded-xl"
+                >
+                  <Eraser className="size-4" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : null}
+    </div>
+  );
+}
+
 const SummaryPanel = memo(function SummaryPanel({
   content,
   analysis,
   isLoading,
+  mobile = false,
   onTimestampClick,
 }: {
   content: VideoChatCopy;
   analysis: VideoAnalysisPayload | null;
   isLoading: boolean;
+  mobile?: boolean;
   onTimestampClick?: (seconds: number) => void;
 }) {
   return (
-    <div className="border-border bg-card/70 h-full overflow-hidden rounded-2xl border shadow-xs">
+    <div
+      className={cn(
+        'border-border bg-card/70 h-full overflow-hidden border shadow-xs',
+        mobile ? 'rounded-[18px]' : 'rounded-2xl'
+      )}
+    >
       <ScrollArea className="h-full">
         <div className="flex flex-col gap-5 p-5">
           <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
@@ -1662,6 +2016,7 @@ function CaptionsPanel({
   displayedSubtitleItems,
   isBilingualCaptions,
   isSubtitleTranslating,
+  mobile = false,
   subtitleLanguage,
   subtitleLanguages,
   transcriptKey,
@@ -1676,6 +2031,7 @@ function CaptionsPanel({
   displayedSubtitleItems: SubtitleItem[];
   isBilingualCaptions: boolean;
   isSubtitleTranslating: boolean;
+  mobile?: boolean;
   subtitleLanguage: string;
   subtitleLanguages: Array<{ value: string; label: string }>;
   transcriptKey: string;
@@ -1792,7 +2148,12 @@ function CaptionsPanel({
   }
 
   return (
-    <div className="border-border bg-card/80 relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border shadow-xs">
+    <div
+      className={cn(
+        'border-border bg-card/80 relative flex h-full min-h-0 flex-col overflow-hidden border shadow-xs',
+        mobile ? 'rounded-[18px]' : 'rounded-[28px]'
+      )}
+    >
       <div className="border-border bg-background/95 flex flex-wrap items-center gap-2 border-b p-3">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <SubtitleActionButton
@@ -2005,6 +2366,7 @@ const ChatBubble = memo(function ChatBubble({
   copyLabel,
   copySuccessLabel,
   message,
+  mobile = false,
   onTimestampClick,
   streamingLabel,
 }: {
@@ -2012,13 +2374,19 @@ const ChatBubble = memo(function ChatBubble({
   copyLabel: string;
   copySuccessLabel: string;
   message: Message;
+  mobile?: boolean;
   onTimestampClick?: (seconds: number) => void;
   streamingLabel?: string;
 }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="bg-primary text-primary-foreground max-w-[280px] rounded-xl px-4 py-3 text-sm leading-6">
+        <div
+          className={cn(
+            'bg-primary text-primary-foreground max-w-[280px] rounded-xl px-4 py-3 leading-6',
+            mobile ? 'text-[13px] leading-5.5' : 'text-sm'
+          )}
+        >
           {message.text}
         </div>
       </div>
@@ -2149,9 +2517,12 @@ const ChatBubble = memo(function ChatBubble({
     <div className="flex items-start">
       <div
         className={cn(
-          'text-foreground max-w-full text-sm leading-7',
+          'text-foreground max-w-full',
+          mobile ? 'text-[13px] leading-6' : 'text-sm leading-7',
           showBubbleChrome
-            ? 'bg-card/90 border-border relative rounded-xl border p-4 shadow-xs backdrop-blur-sm'
+            ? mobile
+              ? 'relative py-2'
+              : 'bg-card/90 border-border relative rounded-xl border p-4 shadow-xs backdrop-blur-sm'
             : 'py-1'
         )}
       >
@@ -2164,13 +2535,16 @@ const ChatBubble = memo(function ChatBubble({
             title={copyLabel}
             disabled={!hasMessageText}
             onClick={() => void handleCopyMessage()}
-            className="text-muted-foreground hover:text-foreground absolute top-4 right-4 size-8 rounded-lg"
+            className={cn(
+              'text-muted-foreground hover:text-foreground absolute size-8 rounded-lg',
+              mobile ? 'top-1 right-0' : 'top-4 right-4'
+            )}
           >
             <Copy className="size-4" />
           </Button>
         ) : null}
         {hasMessageText ? (
-          <div className="space-y-2 pr-10">
+          <div className={cn('space-y-2 pr-10', mobile && 'pr-9')}>
             {lines.map((line, index) =>
               line ? (
                 <p key={`line-${index}`}>{renderFormattedLine(line, index)}</p>

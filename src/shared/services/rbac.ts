@@ -5,7 +5,7 @@ import { db } from '@/core/db';
 import { permission, role, rolePermission, userRole } from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
 import { getAllConfigs } from '@/shared/models/config';
-import { User } from '@/shared/models/user';
+import type { User } from '@/shared/models/user';
 
 // Types
 export type Role = typeof role.$inferSelect;

@@ -5,7 +5,7 @@ import { credit } from '@/config/db/schema';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
 
 import { getAllConfigs } from './config';
-import { appendUserToResult, User } from './user';
+import type { User } from './user';
 
 export type Credit = typeof credit.$inferSelect & {
   user?: User;
@@ -109,6 +109,7 @@ export async function getCredits({
     .offset((page - 1) * limit);
 
   if (getUser) {
+    const { appendUserToResult } = await import('./user');
     return appendUserToResult(result);
   }
 
