@@ -18,8 +18,8 @@ import {
   ArrowRight,
   ArrowUp,
   Captions,
-  ChevronLeft,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
   Clipboard,
   Copy,
@@ -61,7 +61,6 @@ import {
 } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useAppContext } from '@/shared/contexts/app';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
 import {
   SUPPORTED_AI_MODELS,
   SupportedAIModelId,
@@ -81,6 +80,7 @@ import {
   VideoChatAnswer,
   VideoChatCitation,
 } from '@/shared/types/video-analysis';
+
 import { VideoChatHeaderMenu } from './header-menu';
 
 const spaceGrotesk = Space_Grotesk({
@@ -518,7 +518,6 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const t = useTranslations('pages.video.chat');
   const content = useMemo(() => buildVideoChatCopy(t), [t]);
   const { user } = useAppContext();
-  const isMobile = useIsMobile();
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -614,13 +613,6 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   useEffect(() => {
     setSubtitleLanguage(getDefaultSubtitleLanguage(locale));
   }, [locale]);
-
-  useEffect(() => {
-    if (!isMobile) {
-      setIsMobileSearchExpanded(false);
-      setIsMobileVideoCollapsed(false);
-    }
-  }, [isMobile]);
 
   useEffect(() => {
     if (videoEmbedUrl) {
@@ -817,7 +809,9 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       setAnalysisId(result.analysisId);
 
       if (result.status === 'success' && result.analysis) {
-        setSubtitleLanguage(getDefaultSubtitleLanguage(locale, result.analysis));
+        setSubtitleLanguage(
+          getDefaultSubtitleLanguage(locale, result.analysis)
+        );
         setAnalysis(result.analysis);
         setAnalysisState('ready');
         return;
@@ -1042,8 +1036,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     <div
       className={cn(
         spaceGrotesk.className,
-        'bg-background text-foreground',
-        isMobile ? 'h-dvh overflow-hidden' : 'min-h-screen'
+        'bg-background text-foreground h-dvh min-h-screen overflow-hidden md:h-auto md:overflow-visible'
       )}
     >
       <header className="bg-background/95 sticky top-0 z-20 backdrop-blur">
@@ -1135,62 +1128,151 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
         </div>
       </header>
 
-      <main
-        className={cn(
-          'mx-auto w-full max-w-[1360px] 2xl:max-w-[1440px]',
-          isMobile
-            ? 'flex h-[calc(100dvh-65px)] flex-col overflow-hidden'
-            : 'flex min-h-[calc(100vh-65px)] flex-col xl:h-[calc(100vh-65px)] xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden'
-        )}
-      >
-        {isMobile ? (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4">
-            <div className="shrink-0 pb-4">
-              <MobileVideoDock
-                iframeRef={iframeRef}
-                title={analysis?.videoInfo.title || 'YouTube Player'}
-                videoEmbedUrl={videoEmbedUrl}
-                isCollapsed={isMobileVideoCollapsed}
-                collapseLabel={content.collapseVideo}
-                expandLabel={content.expandVideo}
-                onAnalyze={() => void handleAnalyze()}
-                onToggleCollapse={() =>
-                  setIsMobileVideoCollapsed((current) => !current)
-                }
-              />
-            </div>
+      <main className="mx-auto flex h-[calc(100dvh-65px)] w-full max-w-[1360px] flex-col overflow-hidden md:h-auto md:min-h-[calc(100vh-65px)] md:overflow-visible xl:grid xl:h-[calc(100vh-65px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 md:hidden">
+          <div className="shrink-0 pb-4">
+            <MobileVideoDock
+              iframeRef={iframeRef}
+              title={analysis?.videoInfo.title || 'YouTube Player'}
+              videoEmbedUrl={videoEmbedUrl}
+              isCollapsed={isMobileVideoCollapsed}
+              collapseLabel={content.collapseVideo}
+              expandLabel={content.expandVideo}
+              onAnalyze={() => void handleAnalyze()}
+              onToggleCollapse={() =>
+                setIsMobileVideoCollapsed((current) => !current)
+              }
+            />
+          </div>
 
-              <Tabs
-                defaultValue="captions"
-                className="flex min-h-0 flex-1 flex-col overflow-hidden"
-              >
-              <TabsList className="bg-muted text-muted-foreground h-auto w-full shrink-0 justify-start gap-1 overflow-x-auto rounded-xl p-0.5">
+          <Tabs
+            defaultValue="captions"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <TabsList className="bg-muted text-muted-foreground h-auto w-full shrink-0 justify-start gap-1 overflow-x-auto rounded-xl p-0.5">
+              <WorkspaceTabTrigger
+                value="captions"
+                icon={Captions}
+                label={content.captions}
+                compact
+                className="min-w-[84px]"
+              />
+              <WorkspaceTabTrigger
+                value="summary"
+                icon={List}
+                label={content.summary}
+                compact
+                className="min-w-[84px]"
+              />
+              <WorkspaceTabTrigger
+                value="chat"
+                icon={MessageSquare}
+                label={content.chat}
+                compact
+                className="min-w-[84px]"
+              />
+            </TabsList>
+
+            <TabsContent
+              value="captions"
+              className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
+            >
+              <CaptionsPanel
+                transcriptKey={analysis?.analysisId || analysisId}
+                content={content}
+                activeSubtitleIndex={activeSubtitleIndex}
+                displayedSubtitleItems={subtitleItems}
+                isBilingualCaptions={isBilingualCaptions}
+                isSubtitleTranslating={isSubtitleTranslating}
+                mobile
+                subtitleLanguage={subtitleLanguage}
+                subtitleLanguages={subtitleLanguages}
+                onToggleBilingual={() =>
+                  setIsBilingualCaptions((current) => !current)
+                }
+                onSubtitleLanguageChange={(value) => {
+                  setSubtitleLanguage(value);
+                  void ensureSubtitleTranslation(value);
+                }}
+                onSeekToTimestamp={seekTo}
+                onCopySubtitles={handleCopySubtitles}
+                onDownloadSubtitles={handleDownloadSubtitles}
+              />
+            </TabsContent>
+
+            <TabsContent
+              value="summary"
+              className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
+            >
+              <SummaryPanel
+                content={content}
+                analysis={analysis}
+                isLoading={
+                  analysisState === 'submitting' || analysisState === 'polling'
+                }
+                mobile
+                onTimestampClick={seekTo}
+              />
+            </TabsContent>
+
+            <TabsContent
+              value="chat"
+              className="mt-3 min-h-0 flex-1 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:h-full data-[state=active]:flex-col"
+            >
+              <ChatPanel
+                chatInput={chatInput}
+                chatInputPlaceholder={chatInputPlaceholder}
+                chatMessages={chatMessages}
+                chatModel={chatModel}
+                chatScrollAreaRef={chatScrollAreaRef}
+                content={content}
+                isChatLoading={isChatLoading}
+                analysisState={analysisState}
+                mobile
+                selectedSkill={selectedSkill}
+                onChatInputChange={setChatInput}
+                onChatModelChange={setChatModel}
+                onClearChatInput={() => setChatInput('')}
+                onCopyChatExport={() =>
+                  navigator.clipboard?.writeText(chatExportText)
+                }
+                onSendChat={() => void handleSendChat()}
+                onSkillSelect={(value) => void handleSkillSelect(value)}
+                onTimestampClick={seekTo}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <section className="hidden min-w-0 px-4 pb-4 md:block lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
+          <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
+            <VideoPlayerCard
+              iframeRef={iframeRef}
+              title={analysis?.videoInfo.title || 'YouTube Player'}
+              videoEmbedUrl={videoEmbedUrl}
+              onAnalyze={() => void handleAnalyze()}
+            />
+
+            <Tabs
+              defaultValue="captions"
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <TabsList className="bg-muted text-muted-foreground inline-flex h-10 w-fit shrink-0 items-center justify-start rounded-xl p-1">
                 <WorkspaceTabTrigger
                   value="captions"
                   icon={Captions}
                   label={content.captions}
-                  compact
-                  className="min-w-[84px]"
                 />
                 <WorkspaceTabTrigger
                   value="summary"
                   icon={List}
                   label={content.summary}
-                  compact
-                  className="min-w-[84px]"
-                />
-                <WorkspaceTabTrigger
-                  value="chat"
-                  icon={MessageSquare}
-                  label={content.chat}
-                  compact
-                  className="min-w-[84px]"
                 />
               </TabsList>
 
               <TabsContent
                 value="captions"
-                className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
+                className="mt-4 min-h-0 flex-1 outline-none"
               >
                 <CaptionsPanel
                   transcriptKey={analysis?.analysisId || analysisId}
@@ -1216,7 +1298,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
               <TabsContent
                 value="summary"
-                className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
+                className="mt-4 min-h-0 flex-1 outline-none"
               >
                 <SummaryPanel
                   content={content}
@@ -1225,125 +1307,26 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                     analysisState === 'submitting' ||
                     analysisState === 'polling'
                   }
-                  mobile
-                  onTimestampClick={seekTo}
-                />
-              </TabsContent>
-
-              <TabsContent
-                value="chat"
-                className="mt-3 min-h-0 flex-1 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:h-full data-[state=active]:flex-col"
-              >
-                <ChatPanel
-                  chatInput={chatInput}
-                  chatInputPlaceholder={chatInputPlaceholder}
-                  chatMessages={chatMessages}
-                  chatModel={chatModel}
-                  chatScrollAreaRef={chatScrollAreaRef}
-                  content={content}
-                  isChatLoading={isChatLoading}
-                  analysisState={analysisState}
-                  mobile
-                  selectedSkill={selectedSkill}
-                  onChatInputChange={setChatInput}
-                  onChatModelChange={setChatModel}
-                  onClearChatInput={() => setChatInput('')}
-                  onCopyChatExport={() =>
-                    navigator.clipboard?.writeText(chatExportText)
-                  }
-                  onSendChat={() => void handleSendChat()}
-                  onSkillSelect={(value) => void handleSkillSelect(value)}
                   onTimestampClick={seekTo}
                 />
               </TabsContent>
             </Tabs>
           </div>
-        ) : (
-          <>
-            <section className="min-w-0 px-4 pb-4 lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
-              <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
-                <VideoPlayerCard
-                  iframeRef={iframeRef}
-                  title={analysis?.videoInfo.title || 'YouTube Player'}
-                  videoEmbedUrl={videoEmbedUrl}
-                  onAnalyze={() => void handleAnalyze()}
-                />
+        </section>
 
-                <Tabs
-                  defaultValue="captions"
-                  className="flex min-h-0 flex-1 flex-col"
-                >
-                  <TabsList className="bg-muted text-muted-foreground inline-flex h-10 w-fit shrink-0 items-center justify-start rounded-xl p-1">
-                    <WorkspaceTabTrigger
-                      value="captions"
-                      icon={Captions}
-                      label={content.captions}
-                    />
-                    <WorkspaceTabTrigger
-                      value="summary"
-                      icon={List}
-                      label={content.summary}
-                    />
-                  </TabsList>
-
-                  <TabsContent
-                    value="captions"
-                    className="mt-4 min-h-0 flex-1 outline-none"
-                  >
-                <CaptionsPanel
-                  transcriptKey={analysis?.analysisId || analysisId}
-                  content={content}
-                  activeSubtitleIndex={activeSubtitleIndex}
-                  displayedSubtitleItems={subtitleItems}
-                  isBilingualCaptions={isBilingualCaptions}
-                  isSubtitleTranslating={isSubtitleTranslating}
-                  mobile
-                  subtitleLanguage={subtitleLanguage}
-                  subtitleLanguages={subtitleLanguages}
-                  onToggleBilingual={() =>
-                        setIsBilingualCaptions((current) => !current)
-                      }
-                      onSubtitleLanguageChange={(value) => {
-                        setSubtitleLanguage(value);
-                        void ensureSubtitleTranslation(value);
-                      }}
-                      onSeekToTimestamp={seekTo}
-                      onCopySubtitles={handleCopySubtitles}
-                      onDownloadSubtitles={handleDownloadSubtitles}
-                    />
-                  </TabsContent>
-
-                  <TabsContent
-                    value="summary"
-                    className="mt-4 min-h-0 flex-1 outline-none"
-                  >
-                    <SummaryPanel
-                      content={content}
-                      analysis={analysis}
-                      isLoading={
-                        analysisState === 'submitting' ||
-                        analysisState === 'polling'
-                      }
-                      onTimestampClick={seekTo}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </section>
-
-            <aside className="border-border bg-card min-h-0 border-t xl:h-full xl:overflow-hidden xl:border-t-0 xl:border-l">
-              <Tabs
-                defaultValue="chat"
-                className="flex h-full min-h-[720px] flex-col xl:min-h-0"
-              >
-                <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-1 xl:gap-2.5 xl:overflow-visible">
-                  <WorkspaceTabTrigger
-                    value="chat"
-                    icon={MessageSquare}
-                    label={content.chat}
-                    className="min-w-[96px] xl:w-full xl:min-w-0"
-                  />
-                  {/* <WorkspaceTabTrigger
+        <aside className="border-border bg-card hidden min-h-0 border-t md:flex md:flex-col xl:h-full xl:overflow-hidden xl:border-t-0 xl:border-l">
+          <Tabs
+            defaultValue="chat"
+            className="flex h-full min-h-[720px] flex-col xl:min-h-0"
+          >
+            <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-1 xl:gap-2.5 xl:overflow-visible">
+              <WorkspaceTabTrigger
+                value="chat"
+                icon={MessageSquare}
+                label={content.chat}
+                className="min-w-[96px] xl:w-full xl:min-w-0"
+              />
+              {/* <WorkspaceTabTrigger
                     value="mindmap"
                     icon={GitBranch}
                     label={content.mindMap}
@@ -1355,36 +1338,36 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                     label={content.notes}
                     className="min-w-[96px] xl:w-full xl:min-w-0"
                   /> */}
-                </TabsList>
+            </TabsList>
 
-                <TabsContent
-                  value="chat"
-                  className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
-                >
-                  <ChatPanel
-                    chatInput={chatInput}
-                    chatInputPlaceholder={chatInputPlaceholder}
-                  chatMessages={chatMessages}
-                  chatModel={chatModel}
-                  chatScrollAreaRef={chatScrollAreaRef}
-                  content={content}
-                  isChatLoading={isChatLoading}
-                  analysisState={analysisState}
-                  mobile={false}
-                  selectedSkill={selectedSkill}
-                  onChatInputChange={setChatInput}
-                  onChatModelChange={setChatModel}
-                    onClearChatInput={() => setChatInput('')}
-                    onCopyChatExport={() =>
-                      navigator.clipboard?.writeText(chatExportText)
-                    }
-                    onSendChat={() => void handleSendChat()}
-                    onSkillSelect={(value) => void handleSkillSelect(value)}
-                    onTimestampClick={seekTo}
-                  />
-                </TabsContent>
+            <TabsContent
+              value="chat"
+              className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
+            >
+              <ChatPanel
+                chatInput={chatInput}
+                chatInputPlaceholder={chatInputPlaceholder}
+                chatMessages={chatMessages}
+                chatModel={chatModel}
+                chatScrollAreaRef={chatScrollAreaRef}
+                content={content}
+                isChatLoading={isChatLoading}
+                analysisState={analysisState}
+                mobile={false}
+                selectedSkill={selectedSkill}
+                onChatInputChange={setChatInput}
+                onChatModelChange={setChatModel}
+                onClearChatInput={() => setChatInput('')}
+                onCopyChatExport={() =>
+                  navigator.clipboard?.writeText(chatExportText)
+                }
+                onSendChat={() => void handleSendChat()}
+                onSkillSelect={(value) => void handleSkillSelect(value)}
+                onTimestampClick={seekTo}
+              />
+            </TabsContent>
 
-                {/* <SidebarContent
+            {/* <SidebarContent
                   value="mindmap"
                   title={content.mindMapHeading}
                   body={content.mindMapBody}
@@ -1396,10 +1379,8 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                   body={content.notesBody}
                   icon={NotebookPen}
                 /> */}
-              </Tabs>
-            </aside>
-          </>
-        )}
+          </Tabs>
+        </aside>
       </main>
 
       {errorMessage ? (
@@ -1673,7 +1654,9 @@ function ChatPanel({
       <div
         className={cn(
           'border-border bg-card/80 flex min-h-0 flex-1 flex-col overflow-hidden border shadow-xs',
-          mobile ? 'rounded-[18px]' : 'rounded-none border-0 bg-transparent shadow-none'
+          mobile
+            ? 'rounded-[18px]'
+            : 'rounded-none border-0 bg-transparent shadow-none'
         )}
       >
         <ScrollArea
@@ -1686,16 +1669,16 @@ function ChatPanel({
           <div className="space-y-4 pb-4">
             {chatMessages.length > 0 ? (
               chatMessages.map((message, index) => (
-              <ChatBubble
-                key={`${message.role}-${index}`}
-                copyFailedLabel={content.copyReplyFailed}
-                copyLabel={content.copyReply}
-                copySuccessLabel={content.copyReplySuccess}
-                message={message}
-                mobile={mobile}
-                onTimestampClick={onTimestampClick}
-                streamingLabel={content.chatStreaming}
-              />
+                <ChatBubble
+                  key={`${message.role}-${index}`}
+                  copyFailedLabel={content.copyReplyFailed}
+                  copyLabel={content.copyReply}
+                  copySuccessLabel={content.copyReplySuccess}
+                  message={message}
+                  mobile={mobile}
+                  onTimestampClick={onTimestampClick}
+                  streamingLabel={content.chatStreaming}
+                />
               ))
             ) : (
               <div className="text-muted-foreground text-sm leading-7">
@@ -1709,7 +1692,7 @@ function ChatPanel({
       <div
         className={cn(
           'border-border shrink-0',
-          mobile ? 'py-2' : 'border-t space-y-3 px-5 py-4'
+          mobile ? 'py-2' : 'space-y-3 border-t px-5 py-4'
         )}
       >
         <div className={cn(mobile ? '' : 'space-y-3 px-1 pt-1')}>
@@ -1795,7 +1778,9 @@ function ChatPanel({
                     aria-label={content.modelLabel}
                     value={chatModel}
                     onChange={(event) =>
-                      onChatModelChange(event.target.value as SupportedAIModelId)
+                      onChatModelChange(
+                        event.target.value as SupportedAIModelId
+                      )
                     }
                     className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-0"
                   >
@@ -1896,7 +1881,9 @@ function ChatPanel({
                     aria-label={content.modelLabel}
                     value={chatModel}
                     onChange={(event) =>
-                      onChatModelChange(event.target.value as SupportedAIModelId)
+                      onChatModelChange(
+                        event.target.value as SupportedAIModelId
+                      )
                     }
                     className="border-border bg-background text-foreground focus-visible:border-primary h-11 w-full appearance-none rounded-2xl border py-0 pr-10 pl-4 text-sm font-medium shadow-none outline-none focus-visible:ring-0"
                   >
@@ -2151,7 +2138,7 @@ function CaptionsPanel({
     <div
       className={cn(
         'border-border bg-card/80 relative flex h-full min-h-0 flex-col overflow-hidden border shadow-xs',
-        mobile ? 'rounded-[18px]' : 'rounded-[28px]'
+        mobile ? 'rounded-[18px]' : 'rounded-[18px]'
       )}
     >
       <div className="border-border bg-background/95 flex flex-wrap items-center gap-2 border-b p-3">
@@ -2175,7 +2162,12 @@ function CaptionsPanel({
               disabled={isSubtitleTranslating}
               value={subtitleLanguage}
               onChange={(event) => onSubtitleLanguageChange(event.target.value)}
-              className="border-border bg-card text-foreground focus-visible:border-primary h-9 min-w-[168px] appearance-none rounded-lg border py-0 pr-9 pl-8 text-sm font-medium shadow-none outline-none focus-visible:ring-0 sm:min-w-[220px]"
+              className={cn(
+                'border-border bg-card text-foreground focus-visible:border-primary appearance-none border py-0 pr-9 pl-8 font-medium shadow-none outline-none focus-visible:ring-0',
+                mobile
+                  ? 'h-8 min-w-[50px] rounded-md pr-8 pl-7 text-[11px]'
+                  : 'h-9 min-w-[168px] rounded-lg text-sm sm:min-w-[220px]'
+              )}
             >
               {subtitleLanguages.map((language) => (
                 <option key={language.value} value={language.value}>
