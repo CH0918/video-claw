@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Captions,
@@ -21,12 +22,13 @@ import {
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import { localeNames, locales } from '@/config/locale';
 import { Button } from '@/shared/components/ui/button';
+import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList } from '@/shared/components/ui/tabs';
 import { useAppContext } from '@/shared/contexts/app';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { VIDEO_CHAT_DEFAULT_MODEL } from '@/shared/lib/ai-models';
+import { SUBTITLE_LANGUAGES } from '@/shared/lib/subtitle-languages';
 import { cn } from '@/shared/lib/utils';
 import { buildYouTubeEmbedUrl } from '@/shared/lib/video-analysis/youtube';
 import { VideoAnalysisPayload } from '@/shared/types/video-analysis';
@@ -60,7 +62,7 @@ import { WorkspaceTabTrigger } from './workspace-tab-trigger';
 export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const t = useTranslations('pages.video.chat');
   const content = useMemo(() => buildVideoChatCopy(t), [t]);
-  const { user } = useAppContext();
+  const { user, fetchUserCredits } = useAppContext();
   const isMobile = useIsMobile();
   const router = useRouter();
   const mobileIframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -115,14 +117,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const videoEmbedUrl = analysis?.videoInfo.videoId
     ? buildYouTubeEmbedUrl(analysis.videoInfo.videoId)
     : null;
-  const subtitleLanguages = useMemo(
-    () =>
-      locales.map((value) => ({
-        value,
-        label: localeNames[value],
-      })),
-    []
-  );
+  const subtitleLanguages = SUBTITLE_LANGUAGES;
   const chatInputPlaceholder = isMobile
     ? content.askPlaceholder
     : locale === 'zh'
@@ -170,6 +165,30 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     if (chatAutoScrollLockRef.current) return;
     setIsChatAutoFollowEnabled(value);
   }, []);
+
+  const detectAndSetLanguage = useCallback(
+    async (targetAnalysis: VideoAnalysisPayload) => {
+      const sampleText = targetAnalysis.transcript
+        .slice(0, 3)
+        .map((s) => s.text)
+        .join(' ')
+        .trim();
+      if (!sampleText) return;
+
+      try {
+        const result = await postJson<{ language: string }>(
+          '/api/video/detect-language',
+          { text: sampleText }
+        );
+        if (result.language) {
+          setSubtitleLanguage(result.language);
+        }
+      } catch {
+        // keep the default language on failure
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!initialUrl || hasBootstrappedRef.current) return;
@@ -321,12 +340,12 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           if (cancelled) return;
 
           if (result.status === 'success' && result.analysis) {
-            setSubtitleLanguage(
-              getDefaultSubtitleLanguage(locale, result.analysis)
-            );
+            setSubtitleLanguage(getDefaultSubtitleLanguage(locale));
             setAnalysis(result.analysis);
             setAnalysisState('ready');
             setErrorMessage('');
+            void fetchUserCredits();
+            void detectAndSetLanguage(result.analysis);
             return;
           }
 
@@ -375,11 +394,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       setAnalysisId(result.analysisId);
 
       if (result.status === 'success' && result.analysis) {
-        setSubtitleLanguage(
-          getDefaultSubtitleLanguage(locale, result.analysis)
-        );
+        setSubtitleLanguage(getDefaultSubtitleLanguage(locale));
         setAnalysis(result.analysis);
         setAnalysisState('ready');
+        void fetchUserCredits();
+        void detectAndSetLanguage(result.analysis);
         return;
       }
 
@@ -535,6 +554,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       );
     } finally {
       setIsChatLoading(false);
+      void fetchUserCredits();
     }
   }
 
@@ -579,6 +599,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
         ...current,
         [cacheKey]: result.translations,
       }));
+      void fetchUserCredits();
     } catch {
       setErrorMessage(content.translationFailed);
     } finally {
@@ -586,24 +607,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     }
   }
 
-  useEffect(() => {
-    if (!analysis?.transcript?.length) return;
-    if (sourceSubtitleLanguage && sourceSubtitleLanguage === subtitleLanguage) {
-      return;
-    }
-    void ensureSubtitleTranslation(subtitleLanguage);
-  }, [
-    analysis?.transcript,
-    analysisId,
-    sourceSubtitleLanguage,
-    subtitleLanguage,
-  ]);
-
   return (
     <div
       className={cn(
         spaceGrotesk.className,
-        'bg-background text-foreground h-dvh min-h-screen overflow-hidden md:h-auto md:overflow-visible'
+        'bg-background text-foreground h-dvh min-h-screen overflow-hidden lg:h-auto lg:overflow-visible'
       )}
     >
       <a
@@ -614,7 +622,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       </a>
       <header className="bg-background/95 sticky top-0 z-20 backdrop-blur">
         <div className="mx-auto w-full max-w-[1360px] px-4 py-3 lg:px-6 2xl:max-w-[1440px]">
-          <div className="min-h-10 md:hidden">
+          <div className="min-h-10 lg:hidden">
             {isMobileSearchExpanded ? (
               <div className="flex items-center gap-2">
                 <Button
@@ -646,12 +654,13 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
             ) : (
               <div className="flex items-center gap-3">
                 <Link href={`/${locale}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
-                    V
-                  </div>
-                  <div className="truncate text-base font-semibold tracking-tight">
-                    Cyline
-                  </div>
+                  <Image
+                    src="/logo.png"
+                    alt="Video Claw"
+                    width={688}
+                    height={384}
+                className="h-9 w-auto"
+                  />
                 </Link>
 
                 <Button
@@ -670,14 +679,15 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
             )}
           </div>
 
-          <div className="hidden items-center md:flex">
+          <div className="hidden items-center lg:flex">
             <Link href={`/${locale}`} className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-bold">
-                V
-              </div>
-              <div className="truncate text-lg font-semibold tracking-tight">
-                Cyline
-              </div>
+              <Image
+                src="/logo.png"
+                alt="Video Claw"
+                width={688}
+                height={384}
+                className="h-10 w-auto"
+              />
             </Link>
 
             <div className="w-full max-w-[560px] px-4">
@@ -704,9 +714,102 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
       <main
         id="video-chat-main"
-        className="mx-auto flex h-[calc(100dvh-65px)] w-full max-w-[1360px] flex-col overflow-hidden md:h-auto md:min-h-[calc(100vh-65px)] md:overflow-visible xl:grid xl:h-[calc(100vh-65px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]"
+        className="mx-auto flex h-[calc(100dvh-65px)] w-full max-w-[1360px] flex-col overflow-hidden lg:grid lg:h-[calc(100vh-65px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:overflow-hidden 2xl:max-w-[1440px]"
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 md:hidden">
+        {isAnalyzing && !analysis ? (
+          <>
+            {/* Mobile skeleton */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 lg:hidden">
+              <div className="shrink-0 space-y-2 pb-4">
+                <Skeleton className="aspect-video w-full rounded-2xl" />
+                <Skeleton className="h-9 w-full rounded-full" />
+              </div>
+              <div className="flex justify-center gap-1 pb-3">
+                <Skeleton className="h-8 w-[84px] rounded-lg" />
+                <Skeleton className="h-8 w-[84px] rounded-lg" />
+                <Skeleton className="h-8 w-[84px] rounded-lg" />
+              </div>
+              <div className="border-border flex-1 space-y-0 overflow-hidden rounded-[18px] border p-2.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3 py-1.5">
+                    <Skeleton className="mt-0.5 h-5 w-14 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-full rounded" />
+                      <Skeleton className="h-4 w-2/3 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop skeleton */}
+            <section className="hidden min-w-0 px-4 pb-4 lg:block lg:px-6 lg:pb-6 lg:h-full lg:min-h-0 lg:overflow-hidden lg:pt-0">
+              <div className="flex h-full min-h-[720px] flex-col gap-5 lg:min-h-0">
+                <Skeleton className="aspect-video w-full shrink-0 rounded-2xl" />
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex gap-1 pb-4">
+                    <Skeleton className="h-8 w-24 rounded-lg" />
+                    <Skeleton className="h-8 w-24 rounded-lg" />
+                  </div>
+                  <div className="border-border flex-1 space-y-0 overflow-hidden rounded-[18px] border p-2.5">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="flex items-start gap-3 py-1.5">
+                        <Skeleton className="mt-0.5 h-5 w-14 shrink-0 rounded-lg" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-full rounded" />
+                          <Skeleton className="h-4 w-3/5 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+            <aside className="border-border bg-card hidden min-h-0 border-t lg:flex lg:flex-col lg:overflow-hidden lg:border lg:rounded-xl lg:mb-6 lg:mr-6">
+              <div className="flex flex-1 flex-col gap-5 p-4">
+                {/* AI message */}
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-8 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4 rounded" />
+                    <Skeleton className="h-4 w-full rounded" />
+                    <Skeleton className="h-4 w-1/2 rounded" />
+                  </div>
+                </div>
+                {/* User message */}
+                <div className="flex justify-end">
+                  <Skeleton className="h-9 w-2/5 rounded-2xl" />
+                </div>
+                {/* AI message */}
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-8 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-full rounded" />
+                    <Skeleton className="h-4 w-5/6 rounded" />
+                    <Skeleton className="h-4 w-2/3 rounded" />
+                  </div>
+                </div>
+                {/* User message */}
+                <div className="flex justify-end">
+                  <Skeleton className="h-9 w-1/3 rounded-2xl" />
+                </div>
+                {/* AI message */}
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-8 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-full rounded" />
+                    <Skeleton className="h-4 w-3/5 rounded" />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-border p-4">
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+            </aside>
+          </>
+        ) : (
+          <>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 lg:hidden">
           <div className="shrink-0 pb-4">
             <MobileVideoDock
               iframeRef={mobileIframeRef}
@@ -832,8 +935,8 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           </Tabs>
         </div>
 
-        <section className="hidden min-w-0 px-4 pb-4 md:block lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
-          <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
+        <section className="hidden min-w-0 px-4 pb-4 lg:block lg:px-6 lg:pb-6 lg:h-full lg:min-h-0 lg:overflow-hidden lg:pt-0">
+          <div className="flex h-full min-h-[720px] flex-col gap-5 lg:min-h-0">
             <VideoPlayerCard
               iframeRef={desktopIframeRef}
               title={analysis?.videoInfo.title || 'YouTube Player'}
@@ -902,7 +1005,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           </div>
         </section>
 
-        <aside className="border-border bg-card hidden min-h-0 border-t md:flex md:flex-col xl:overflow-hidden xl:border xl:rounded-xl xl:mb-6 xl:mr-6">
+        <aside className="border-border bg-card hidden min-h-0 border-t lg:flex lg:flex-col lg:overflow-hidden lg:border lg:rounded-xl lg:mb-6 lg:mr-6">
           <ChatPanel
             chatInput={chatInput}
             chatInputPlaceholder={chatInputPlaceholder}
@@ -936,6 +1039,8 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
             onTimestampClick={seekTo}
           />
         </aside>
+          </>
+        )}
       </main>
 
       {errorMessage ? (

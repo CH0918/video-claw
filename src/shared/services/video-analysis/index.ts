@@ -4,6 +4,7 @@ import {
   VIDEO_SYSTEM_DEFAULT_MODEL,
 } from '@/shared/lib/ai-models';
 import { normalizeEvolinkBaseUrl } from '@/shared/lib/evolink';
+import { SUBTITLE_LANGUAGE_CODES } from '@/shared/lib/subtitle-languages';
 import {
   buildVideoAnalysisPayload,
   createVideoAnalysis,
@@ -219,8 +220,11 @@ function normalizeLanguageToLocale(language?: string | null) {
     .toLowerCase();
 
   if (!value) return null;
-  if (value === 'zh' || value.startsWith('zh-')) return 'zh';
-  if (value === 'en' || value.startsWith('en-')) return 'en';
+
+  if (SUBTITLE_LANGUAGE_CODES.has(value)) return value;
+
+  const prefix = value.split('-')[0];
+  if (SUBTITLE_LANGUAGE_CODES.has(prefix)) return prefix;
 
   return null;
 }
@@ -246,6 +250,7 @@ export async function startVideoAnalysis(url: string) {
     return {
       analysisId: existing.id,
       status: existing.status as 'pending' | 'processing',
+      isNew: false,
     };
   }
 
@@ -291,6 +296,7 @@ export async function startVideoAnalysis(url: string) {
   return {
     analysisId: record.id,
     status: 'pending' as const,
+    isNew: true,
   };
 }
 
@@ -605,4 +611,54 @@ export async function getVideoAnalysisPayload(
   }
 
   return buildVideoAnalysisPayload(record);
+}
+
+export async function detectLanguageFromText(text: string): Promise<string> {
+  const sample = String(text || '').trim().slice(0, 500);
+  if (!sample) return 'en';
+
+  const providerConfigs = await getVideoAnalysisConfigs();
+  const { baseUrl, apiKey } = providerConfigs.reasoning;
+
+  const response = await fetch(
+    `${normalizeEvolinkBaseUrl(baseUrl)}/chat/completions`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              'Detect the language of the following text.',
+              'Return ONLY the ISO 639-1 two-letter lowercase code (e.g. en, zh, ja, ko, fr, de, es, pt, ru, ar, hi, it, nl, pl, tr, vi, th, id, ms, sv, da, fi, no, uk, cs, ro, el, he, hu, bn).',
+              'Do not return anything else.',
+              '',
+              text,
+            ].join('\n'),
+          },
+        ],
+        stream: false,
+        temperature: 0,
+      }),
+      cache: 'no-store',
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.log('[detectLanguage] error:', payload);
+    return 'en';
+  }
+
+  const raw = String(payload?.choices?.[0]?.message?.content || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+
+  return raw.length === 2 ? raw : 'en';
 }

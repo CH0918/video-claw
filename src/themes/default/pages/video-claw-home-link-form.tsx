@@ -1,8 +1,7 @@
 'use client';
 
 import { FormEvent, useRef, useState } from 'react';
-import { ArrowUp, Facebook, Youtube } from 'lucide-react';
-import { RiTwitterXFill } from 'react-icons/ri';
+import { ArrowUp, Loader2, Youtube } from 'lucide-react';
 
 import { useRouter } from '@/core/i18n/navigation';
 
@@ -11,24 +10,6 @@ type VideoClawHomeLinkFormProps = {
   submitLabel: string;
 };
 
-const supportedPlatforms = [
-  {
-    name: 'YouTube',
-    icon: Youtube,
-    className: 'text-[#FF0033]',
-  },
-  {
-    name: 'X',
-    icon: RiTwitterXFill,
-    className: 'text-foreground',
-  },
-  {
-    name: 'Facebook',
-    icon: Facebook,
-    className: 'text-[#1877F2]',
-  },
-];
-
 export function VideoClawHomeLinkForm({
   placeholder,
   submitLabel,
@@ -36,9 +17,11 @@ export function VideoClawHomeLinkForm({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState('');
+  const [loading, setLoading] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) return;
 
     const nextValue = value.trim();
 
@@ -50,6 +33,7 @@ export function VideoClawHomeLinkForm({
       inputRef.current?.blur();
     }
 
+    setLoading(true);
     router.push(target);
   }
 
@@ -65,32 +49,31 @@ export function VideoClawHomeLinkForm({
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder={placeholder}
-          className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-[13px] placeholder:text-muted-foreground/65 sm:h-16 sm:text-lg sm:placeholder:text-base"
+          disabled={loading}
+          className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-[13px] placeholder:text-muted-foreground/65 sm:h-16 sm:text-lg sm:placeholder:text-base disabled:opacity-60"
         />
       </div>
 
       <div className="text-muted-foreground flex flex-wrap items-center gap-2 px-1 pt-0 text-[11px] leading-none sm:gap-3 sm:pt-1 sm:text-xs">
-        {supportedPlatforms.map((platform) => {
-          const Icon = platform.icon;
-
-          return (
-            <span
-              key={platform.name}
-              className="inline-flex items-center gap-1.5"
-              aria-label={platform.name}
-              title={platform.name}
-            >
-              <Icon className={`h-4 w-4 ${platform.className} sm:h-4.5 sm:w-4.5`} />
-            </span>
-          );
-        })}
+        <span
+          className="inline-flex items-center gap-1.5"
+          aria-label="YouTube"
+          title="YouTube"
+        >
+          <Youtube className="h-4 w-4 text-[#FF0033] sm:h-4.5 sm:w-4.5" />
+        </span>
 
         <button
           type="submit"
+          disabled={loading}
           aria-label={submitLabel}
-          className="bg-primary text-primary-foreground focus-visible:ring-primary/30 ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none sm:h-11 sm:w-11"
+          className="bg-primary text-primary-foreground focus-visible:ring-primary/30 ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none disabled:opacity-70 sm:h-11 sm:w-11"
         >
-          <ArrowUp className="h-5 w-5 sm:h-6 sm:w-6" />
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin sm:h-6 sm:w-6" />
+          ) : (
+            <ArrowUp className="h-5 w-5 sm:h-6 sm:w-6" />
+          )}
         </button>
       </div>
     </form>

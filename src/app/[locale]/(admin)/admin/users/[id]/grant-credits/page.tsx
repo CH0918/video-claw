@@ -91,7 +91,7 @@ export default async function UserGrantCreditsPage({
           throw new Error('no auth');
         }
 
-        const credits = parseInt(data.get('credits') as string) || 0;
+        const credits = parseFloat(data.get('credits') as string) || 0;
         const validDays = parseInt(data.get('valid_days') as string) || 0;
         const description = data.get('description') as string;
 

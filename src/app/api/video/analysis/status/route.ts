@@ -1,4 +1,8 @@
 import { respData, respErr } from '@/shared/lib/resp';
+import {
+  findConsumeCreditByMetadata,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 import { getVideoAnalysisStatus } from '@/shared/services/video-analysis';
 
@@ -15,6 +19,16 @@ export async function POST(req: Request) {
     }
 
     const result = await getVideoAnalysisStatus(String(analysisId));
+
+    if (result.status === 'error') {
+      const consumeRecord = await findConsumeCreditByMetadata(
+        String(analysisId)
+      );
+      if (consumeRecord) {
+        await refundCredits(consumeRecord.id);
+      }
+    }
+
     return respData(result);
   } catch (e: any) {
     console.log('video analysis status failed:', e);

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   index,
   integer,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -347,8 +348,8 @@ export const credit = table(
     transactionNo: text('transaction_no').unique().notNull(), // transaction no
     transactionType: text('transaction_type').notNull(), // transaction type, grant / consume
     transactionScene: text('transaction_scene'), // transaction scene, payment / subscription / gift / award
-    credits: integer('credits').notNull(), // credits amount, n or -n
-    remainingCredits: integer('remaining_credits').notNull().default(0), // remaining credits amount
+    credits: real('credits').notNull(), // credits amount, n or -n
+    remainingCredits: real('remaining_credits').notNull().default(0), // remaining credits amount
     description: text('description'), // transaction description
     expiresAt: integer('expires_at', { mode: 'timestamp_ms' }), // transaction expires at
     status: text('status').notNull(), // transaction status
@@ -538,7 +539,7 @@ export const aiTask = table(
     taskId: text('task_id'), // provider task id
     taskInfo: text('task_info'), // provider task info
     taskResult: text('task_result'), // provider task result
-    costCredits: integer('cost_credits').notNull().default(0),
+    costCredits: real('cost_credits').notNull().default(0),
     scene: text('scene').notNull().default(''),
     creditId: text('credit_id'), // credit consumption record id
   },

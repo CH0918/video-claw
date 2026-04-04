@@ -1,5 +1,6 @@
 import {
   boolean,
+  double,
   index,
   int,
   longtext,
@@ -301,8 +302,8 @@ export const credit = table(
     transactionNo: varchar191('transaction_no').unique().notNull(), // transaction no
     transactionType: varchar('transaction_type', { length: 50 }).notNull(), // transaction type, grant / consume
     transactionScene: varchar('transaction_scene', { length: 50 }), // transaction scene, payment / subscription / gift / award
-    credits: int('credits').notNull(), // credits amount, n or -n
-    remainingCredits: int('remaining_credits').notNull().default(0), // remaining credits amount
+    credits: double('credits').notNull(), // credits amount, n or -n
+    remainingCredits: double('remaining_credits').notNull().default(0), // remaining credits amount
     description: text('description'), // transaction description
     expiresAt: timestamp('expires_at'), // transaction expires at
     status: varchar('status', { length: 50 }).notNull(), // transaction status
@@ -457,7 +458,7 @@ export const aiTask = table(
     taskId: varchar191('task_id'), // provider task id
     taskInfo: longtext('task_info'), // provider task info
     taskResult: longtext('task_result'), // provider task result
-    costCredits: int('cost_credits').notNull().default(0),
+    costCredits: double('cost_credits').notNull().default(0),
     scene: varchar('scene', { length: 100 }).notNull().default(''),
     creditId: varchar191('credit_id'), // credit consumption record id
   },

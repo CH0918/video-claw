@@ -56,5 +56,8 @@
   "clearChatConfirm": "Clear all chat messages?",
   "skill": "Skill",
   "skipToContent": "Skip to main content",
-  "dismissError": "Dismiss"
+  "dismissError": "Dismiss",
+  "free": "Free",
+  "creditsPerMessage": "Credits/msg",
+  "insufficientCredits": "Insufficient credits"
 }

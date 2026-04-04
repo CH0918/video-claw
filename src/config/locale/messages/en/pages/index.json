@@ -154,6 +154,10 @@
         {
           "question": "Can I verify where the answer came from?",
           "answer": "Yes. VideoClaw is built to keep answers grounded in the transcript and linked to exact moments in the original video when possible."
+        },
+        {
+          "question": "How many credits does VideoClaw cost?",
+          "answer": "Video analysis costs 2 credits per video (previously analyzed videos are free). In AI chat, Gemini models are free, while GPT 5.4 and Claude cost 2 credits per message. Subtitle translation is always free."
         }
       ]
     },

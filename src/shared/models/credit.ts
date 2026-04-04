@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, isNull, or, sum } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, isNull, like, or, sql, sum } from 'drizzle-orm';
 
 import { db } from '@/core/db';
 import { credit } from '@/config/db/schema';
@@ -185,7 +185,7 @@ export async function consumeCredits({
     if (
       !creditsBalance ||
       !creditsBalance.total ||
-      parseInt(creditsBalance.total) < credits
+      parseFloat(creditsBalance.total) < credits
     ) {
       throw new Error(
         `Insufficient credits, ${creditsBalance?.total || 0} < ${credits}`
@@ -318,7 +318,60 @@ export async function getRemainingCredits(userId: string): Promise<number> {
       )
     );
 
-  return parseInt(result?.total || '0');
+  return parseFloat(result?.total || '0');
+}
+
+// refund a consumed credit transaction
+export async function refundCredits(creditId: string) {
+  return await db().transaction(async (tx: any) => {
+    const [consumedCredit] = await tx
+      .select()
+      .from(credit)
+      .where(eq(credit.id, creditId));
+
+    if (!consumedCredit || consumedCredit.status !== CreditStatus.ACTIVE) {
+      return false;
+    }
+
+    const consumedItems = JSON.parse(consumedCredit.consumedDetail || '[]');
+
+    await Promise.all(
+      consumedItems.map((item: any) => {
+        if (item && item.creditId && item.creditsConsumed > 0) {
+          return tx
+            .update(credit)
+            .set({
+              remainingCredits: sql`${credit.remainingCredits} + ${item.creditsConsumed}`,
+            })
+            .where(eq(credit.id, item.creditId));
+        }
+      })
+    );
+
+    await tx
+      .update(credit)
+      .set({ status: CreditStatus.DELETED })
+      .where(eq(credit.id, creditId));
+
+    return true;
+  });
+}
+
+// find an active consume credit by metadata pattern (LIKE search)
+export async function findConsumeCreditByMetadata(metadataPattern: string) {
+  const [result] = await db()
+    .select()
+    .from(credit)
+    .where(
+      and(
+        eq(credit.transactionType, CreditTransactionType.CONSUME),
+        eq(credit.status, CreditStatus.ACTIVE),
+        like(credit.metadata, `%${metadataPattern}%`)
+      )
+    )
+    .limit(1);
+
+  return result || null;
 }
 
 // grant credits for new user
@@ -332,7 +385,7 @@ export async function grantCreditsForNewUser(user: User) {
   }
 
   // get initial credits amount and valid days
-  const credits = parseInt(configs.initial_credits_amount as string) || 0;
+  const credits = parseFloat(configs.initial_credits_amount as string) || 0;
   if (credits <= 0) {
     return;
   }

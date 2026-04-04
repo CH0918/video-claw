@@ -1,6 +1,7 @@
 import { Space_Grotesk } from 'next/font/google';
 import { useTranslations } from 'next-intl';
 
+import { SUBTITLE_LANGUAGE_CODES } from '@/shared/lib/subtitle-languages';
 import {
   formatTimestamp,
   parseTimestamp,
@@ -149,8 +150,13 @@ export function normalizeLocaleLanguage(value?: string | null) {
     .toLowerCase();
 
   if (!normalized) return null;
-  if (normalized === 'zh' || normalized.startsWith('zh-')) return 'zh';
-  if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+
+  // Direct match against supported codes
+  if (SUBTITLE_LANGUAGE_CODES.has(normalized)) return normalized;
+
+  // Handle regional variants like zh-CN, en-US, pt-BR etc.
+  const prefix = normalized.split('-')[0];
+  if (SUBTITLE_LANGUAGE_CODES.has(prefix)) return prefix;
 
   return null;
 }
@@ -364,5 +370,8 @@ export function buildVideoChatCopy(
     skill: t('skill'),
     skipToContent: t('skipToContent'),
     dismissError: t('dismissError'),
+    free: t('free'),
+    creditsPerMessage: t('creditsPerMessage'),
+    insufficientCredits: t('insufficientCredits'),
   };
 }

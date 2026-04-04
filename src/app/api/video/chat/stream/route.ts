@@ -1,7 +1,9 @@
 import {
+  getSupportedAIModel,
   VIDEO_CHAT_DEFAULT_MODEL,
   requireSupportedAIModel,
 } from '@/shared/lib/ai-models';
+import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 import { streamVideoQuestionAnswer } from '@/shared/services/video-analysis';
 
@@ -23,6 +25,28 @@ export async function POST(req: Request) {
       requestedModel,
       VIDEO_CHAT_DEFAULT_MODEL
     );
+
+    const modelInfo = getSupportedAIModel(model);
+    const creditCost = modelInfo?.creditCost ?? 0;
+
+    if (creditCost > 0) {
+      const remainingCredits = await getRemainingCredits(user.id);
+      if (remainingCredits < creditCost) {
+        return new Response('insufficient credits', { status: 402 });
+      }
+
+      await consumeCredits({
+        userId: user.id,
+        credits: creditCost,
+        scene: 'video-chat',
+        description: `video chat (${model})`,
+        metadata: JSON.stringify({
+          type: 'video-chat',
+          analysisId,
+          model,
+        }),
+      });
+    }
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({

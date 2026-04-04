@@ -15,6 +15,12 @@ import {
 } from 'lucide-react';
 
 import { Link } from '@/core/i18n/navigation';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/shared/components/ui/accordion';
 import { VideoClawHomeLinkForm } from '@/themes/default/pages/video-claw-home-link-form';
 
 type ButtonData = {
@@ -113,7 +119,7 @@ const icons: Record<IconName, React.ComponentType<{ className?: string }>> = {
 
 function SectionEyebrow({ children }: { children: ReactNode }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 text-[13px] font-semibold text-primary">
+    <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 text-[13px] font-semibold text-secondary-foreground">
       {children}
     </div>
   );
@@ -159,7 +165,7 @@ function IconCardGrid({
         return (
           <div
             key={item.title}
-            className="rounded-2xl border border-border bg-card p-7 shadow-[0_8px_40px_rgba(29,25,23,0.06)]"
+            className="rounded-2xl border border-border bg-card p-7 shadow-lg"
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
               <Icon className="h-5 w-5 text-primary" />
@@ -193,7 +199,7 @@ export default function VideoClawHome({
             {page.hero.description}
           </p>
 
-          <div className="w-full max-w-[760px] rounded-3xl border-2 border-primary/90 bg-transparent p-2.5 shadow-[0_8px_32px_rgba(217,119,87,0.12)] sm:p-3">
+          <div className="w-full max-w-[760px] rounded-3xl border-2 border-primary/90 bg-transparent p-2.5 shadow-xl sm:p-3">
             <VideoClawHomeLinkForm
               placeholder={page.hero.input_placeholder}
               submitLabel={page.hero.primary_button.title}
@@ -227,8 +233,8 @@ export default function VideoClawHome({
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-[28px] border border-border bg-card p-4 shadow-[0_12px_48px_rgba(29,25,23,0.08)] sm:p-5 lg:p-6">
-            <div className="relative aspect-video overflow-hidden rounded-[24px] border border-border bg-[radial-gradient(circle_at_top,rgba(217,119,87,0.22),transparent_32%),linear-gradient(135deg,rgba(38,32,29,0.98),rgba(24,21,19,0.92))]">
+          <div className="overflow-hidden rounded-[28px] border border-border bg-card p-4 shadow-xl sm:p-5 lg:p-6">
+            <div className="relative aspect-video overflow-hidden rounded-[24px] border border-border bg-[radial-gradient(circle_at_top,rgba(181,77,46,0.22),transparent_32%),linear-gradient(135deg,rgba(38,32,29,0.98),rgba(24,21,19,0.92))]">
               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:40px_40px] opacity-40" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_48%,rgba(0,0,0,0.28)_100%)]" />
               <div className="relative flex h-full items-center justify-center">
@@ -285,7 +291,7 @@ export default function VideoClawHome({
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               {page.principles.title}
             </h2>
-            <p className="text-base leading-7 text-muted-foreground sm:text-lg">
+            <p className="text-base leading-7 text-background/60 sm:text-lg">
               {page.principles.description}
             </p>
           </div>
@@ -294,7 +300,7 @@ export default function VideoClawHome({
             {page.principles.items.map((item) => (
               <div key={item.title} className="text-center">
                 <div className="text-lg font-semibold text-primary">{item.title}</div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                <p className="mt-2 text-sm leading-6 text-background/60">
                   {item.description}
                 </p>
               </div>
@@ -308,7 +314,7 @@ export default function VideoClawHome({
                 className="rounded-2xl border border-white/10 bg-white/5 p-6"
               >
                 <h3 className="text-lg font-semibold">{item.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                <p className="mt-3 text-sm leading-6 text-background/60">
                   {item.description}
                 </p>
               </div>
@@ -329,19 +335,22 @@ export default function VideoClawHome({
             </p>
           </div>
 
-          <div className="space-y-4">
-            {page.faq.items.map((item) => (
-              <div
+          <Accordion type="single" collapsible className="space-y-3">
+            {page.faq.items.map((item, index) => (
+              <AccordionItem
                 key={item.question}
-                className="rounded-2xl border border-border bg-card p-6"
+                value={`faq-${index}`}
+                className="rounded-2xl border border-border bg-card px-6 last:border-b"
               >
-                <h3 className="text-lg font-semibold">{item.question}</h3>
-                <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                <AccordionTrigger className="py-5 text-lg font-semibold hover:no-underline">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm leading-7 text-muted-foreground">
                   {item.answer}
-                </p>
-              </div>
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         </div>
       </section>
 

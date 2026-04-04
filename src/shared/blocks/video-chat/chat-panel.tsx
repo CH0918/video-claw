@@ -309,7 +309,7 @@ export function ChatPanel({
                         >
                           {SUPPORTED_AI_MODELS.map((modelOption) => (
                             <option key={modelOption.id} value={modelOption.id}>
-                              {modelOption.title}
+                              {modelOption.title} ({modelOption.creditCost > 0 ? `${modelOption.creditCost} ${content.creditsPerMessage}` : content.free})
                             </option>
                           ))}
                         </select>
@@ -373,6 +373,9 @@ export function ChatPanel({
                     {SUPPORTED_AI_MODELS.map((modelOption) => (
                       <SelectItem key={modelOption.id} value={modelOption.id}>
                         {modelOption.title}
+                        <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+                          {modelOption.creditCost > 0 ? `${modelOption.creditCost} ${content.creditsPerMessage}` : content.free}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

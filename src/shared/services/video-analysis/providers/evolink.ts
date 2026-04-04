@@ -32,6 +32,24 @@ async function callEvolink(
     temperature?: number;
   }
 ) {
+  const resolvedModel = options?.model || getReasoningModel(config, 'default');
+  const requestBody = {
+    model: resolvedModel,
+    messages,
+    stream: false,
+    temperature: options?.temperature ?? 0.2,
+    response_format: options?.responseFormat,
+  };
+
+  console.log('[Evolink] request:', {
+    url: `${normalizeEvolinkBaseUrl(config.baseUrl)}/chat/completions`,
+    model: resolvedModel,
+    temperature: requestBody.temperature,
+    response_format: requestBody.response_format,
+    messageCount: messages.length,
+    messageRoles: messages.map((m) => m.role),
+  });
+
   const response = await fetch(
     `${normalizeEvolinkBaseUrl(config.baseUrl)}/chat/completions`,
     {
@@ -40,19 +58,14 @@ async function callEvolink(
         Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: options?.model || getReasoningModel(config, 'default'),
-        messages,
-        stream: false,
-        temperature: options?.temperature ?? 0.2,
-        response_format: options?.responseFormat,
-      }),
+      body: JSON.stringify(requestBody),
       cache: 'no-store',
     }
   );
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    console.log('[Evolink] error:', payload);
     throw new Error(
       payload?.error?.message || payload?.message || 'Evolink request failed'
     );
@@ -93,6 +106,15 @@ async function* streamEvolink(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   model: string
 ): AsyncGenerator<VideoChatStreamChunk, void, void> {
+  console.log('[Evolink] stream request:', {
+    url: `${normalizeEvolinkBaseUrl(config.baseUrl)}/chat/completions`,
+    model,
+    stream: true,
+    temperature: 0.2,
+    messageCount: messages.length,
+    messageRoles: messages.map((m) => m.role),
+  });
+
   const response = await fetch(
     `${normalizeEvolinkBaseUrl(config.baseUrl)}/chat/completions`,
     {

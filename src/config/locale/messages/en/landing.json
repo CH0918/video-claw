@@ -2,7 +2,6 @@
   "header": {
     "id": "header",
     "brand": {
-      "title": "Video Claw",
       "logo": {
         "src": "/logo.png",
         "alt": "Video Claw",
@@ -42,7 +41,6 @@
   "footer": {
     "id": "footer",
     "brand": {
-      "title": "Video Claw",
       "description": "Search, trace, and learn from long videos without losing the original context.",
       "logo": {
         "src": "/logo.png",

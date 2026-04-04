@@ -53,6 +53,9 @@ export type VideoChatCopy = {
   skill: string;
   skipToContent: string;
   dismissError: string;
+  free: string;
+  creditsPerMessage: string;
+  insufficientCredits: string;
 };
 
 export type VideoChatPageProps = {

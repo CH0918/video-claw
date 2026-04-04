@@ -56,5 +56,8 @@
   "clearChatConfirm": "确定清空所有对话记录吗？",
   "skill": "Skill",
   "skipToContent": "跳到主内容",
-  "dismissError": "关闭"
+  "dismissError": "关闭",
+  "free": "免费",
+  "creditsPerMessage": "积分/条",
+  "insufficientCredits": "积分不足"
 }

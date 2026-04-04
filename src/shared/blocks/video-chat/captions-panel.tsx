@@ -1,7 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import {
   ArrowDown,
-  ChevronDown,
   Copy,
   Download,
   Languages,
@@ -9,8 +8,15 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
-import { ClaudeCodeLoading } from '@/shared/components/ui/claude-code-loading';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
+import { Skeleton } from '@/shared/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
 import { Switch } from '@/shared/components/ui/switch';
 import { cn } from '@/shared/lib/utils';
 
@@ -183,28 +189,31 @@ export function CaptionsPanel({
             onClick={onDownloadSubtitles}
           />
 
-          <div className="relative">
-            <Languages className="text-foreground pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
-            <select
+          <Select
+            value={subtitleLanguage}
+            disabled={isSubtitleTranslating}
+            onValueChange={onSubtitleLanguageChange}
+          >
+            <SelectTrigger
               aria-label="Subtitle language"
-              disabled={isSubtitleTranslating}
-              value={subtitleLanguage}
-              onChange={(event) => onSubtitleLanguageChange(event.target.value)}
               className={cn(
-                'border-border bg-card text-foreground focus-visible:border-primary focus-visible:ring-ring/30 appearance-none border py-0 pr-9 pl-8 font-medium shadow-none outline-none focus-visible:ring-2',
+                'border-border bg-card text-foreground font-medium shadow-none',
                 mobile
-                  ? 'h-7 min-w-[50px] rounded-md pr-8 pl-7 text-[11px]'
+                  ? 'h-7 min-w-[50px] gap-1 rounded-md px-2 text-[11px]'
                   : 'h-9 min-w-[168px] rounded-lg text-sm sm:min-w-[220px]'
               )}
             >
+              <Languages className={cn('shrink-0', mobile ? 'size-3' : 'size-3.5')} />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
               {subtitleLanguages.map((language) => (
-                <option key={language.value} value={language.value}>
+                <SelectItem key={language.value} value={language.value}>
                   {language.label}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2" />
-          </div>
+            </SelectContent>
+          </Select>
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <label
@@ -254,8 +263,16 @@ export function CaptionsPanel({
         </ScrollArea>
 
         {isSubtitleTranslating ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-            <ClaudeCodeLoading label={content.translatingCaptions} />
+          <div className="absolute inset-0 z-10 space-y-0 overflow-hidden px-2.5 py-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 py-1.5">
+                <Skeleton className="mt-0.5 h-5 w-14 shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-full rounded" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
       </div>

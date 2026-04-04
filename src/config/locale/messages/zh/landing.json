@@ -2,7 +2,6 @@
   "header": {
     "id": "header",
     "brand": {
-      "title": "Video Claw",
       "logo": {
         "src": "/logo.png",
         "alt": "Video Claw",
@@ -42,7 +41,6 @@
   "footer": {
     "id": "footer",
     "brand": {
-      "title": "Video Claw",
       "description": "把长视频变成可搜索、可追溯、可提问的学习界面。",
       "logo": {
         "src": "/logo.png",

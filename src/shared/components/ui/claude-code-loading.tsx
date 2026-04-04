@@ -41,12 +41,11 @@ export function ClaudeCodeLoading({
       aria-label={label}
       role="status"
     >
-      <span className="sr-only">{label}</span>
 
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox={`0 0 ${11 * P} ${9 * P}`}
-        className="h-[18px] w-[22px]"
+        className="h-[18px] w-[22px] shrink-0"
         shapeRendering="crispEdges"
         style={{ animation: 'crab-walk 0.6s steps(2) infinite' }}
       >
@@ -59,6 +58,9 @@ export function ClaudeCodeLoading({
         <Pixels cells={LEGS_A} style={{ animation: 'crab-legs 0.4s steps(1) infinite' }} />
         <Pixels cells={LEGS_B} style={{ animation: 'crab-legs-alt 0.4s steps(1) infinite' }} />
       </svg>
+      {label ? (
+        <span className="text-muted-foreground text-sm font-medium">{label}</span>
+      ) : null}
 
       <style>{`
         @keyframes crab-walk {
