@@ -45,5 +45,13 @@
   "emptyChat": "字幕就绪后，你可以基于视频内容继续提问。",
   "sendFailed": "对话失败，请稍后重试。",
   "analysisFailed": "视频分析失败。",
-  "translationFailed": "字幕翻译失败。"
+  "translationFailed": "字幕翻译失败。",
+  "moreActions": "更多操作",
+  "chatActionsTitle": "聊天操作",
+  "chatActionsDescription": "选择 Skill、模型，或执行复制与清空操作。",
+  "copy": "复制",
+  "clear": "清空",
+  "skill": "Skill",
+  "skipToContent": "跳到主内容",
+  "dismissError": "关闭"
 }

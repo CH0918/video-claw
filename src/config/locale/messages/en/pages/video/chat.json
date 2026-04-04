@@ -45,5 +45,13 @@
   "emptyChat": "Once the transcript is ready, you can ask grounded questions about this video.",
   "sendFailed": "Chat failed. Please try again.",
   "analysisFailed": "Video analysis failed.",
-  "translationFailed": "Caption translation failed."
+  "translationFailed": "Caption translation failed.",
+  "moreActions": "More Actions",
+  "chatActionsTitle": "Chat Actions",
+  "chatActionsDescription": "Select a Skill, model, or perform copy and clear actions.",
+  "copy": "Copy",
+  "clear": "Clear",
+  "skill": "Skill",
+  "skipToContent": "Skip to main content",
+  "dismissError": "Dismiss"
 }
