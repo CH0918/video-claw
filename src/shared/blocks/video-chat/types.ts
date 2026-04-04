@@ -14,6 +14,8 @@ export type VideoChatCopy = {
   copyReplyFailed: string;
   copyReplySuccess: string;
   copySubtitles: string;
+  copySubtitlesSuccess: string;
+  copySubtitlesFailed: string;
   collapseVideo: string;
   credits: string;
   downloadSubtitles: string;

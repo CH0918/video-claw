@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Captions,
   ChevronLeft,
@@ -32,7 +33,7 @@ import { VideoAnalysisPayload } from '@/shared/types/video-analysis';
 
 import { CaptionsPanel } from './captions-panel';
 import { ChatPanel } from './chat-panel';
-import { VideoChatHeaderMenu } from './header-menu';
+import { VideoChatHeaderMenu, VideoChatHeaderQuickActions } from './header-menu';
 import { HeaderSearchBar } from './header-search-bar';
 import { MobileVideoDock } from './mobile-video-dock';
 import { SummaryPanel } from './summary-panel';
@@ -424,23 +425,24 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
   const handleCopySubtitles = useCallback(async () => {
     if (!analysis?.transcript?.length || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(
-      exportTranscript(analysis.transcript, 'txt')
-    );
-  }, [analysis?.transcript]);
+    try {
+      await navigator.clipboard.writeText(
+        exportTranscript(analysis.transcript, 'txt')
+      );
+      toast.success(content.copySubtitlesSuccess);
+    } catch {
+      toast.error(content.copySubtitlesFailed);
+    }
+  }, [analysis?.transcript, content.copySubtitlesFailed, content.copySubtitlesSuccess]);
 
   const handleDownloadSubtitles = useCallback(() => {
     if (!analysis?.transcript?.length || typeof window === 'undefined') return;
-    const format = window.confirm(content.exportPrompt) ? 'srt' : 'txt';
-
     downloadFile(
-      `${slugify(analysis.videoInfo.title || analysis.videoInfo.videoId)}.${format}`,
-      exportTranscript(analysis.transcript, format),
-      format === 'srt'
-        ? 'application/x-subrip;charset=utf-8'
-        : 'text/plain;charset=utf-8'
+      `${slugify(analysis.videoInfo.title || analysis.videoInfo.videoId)}.srt`,
+      exportTranscript(analysis.transcript, 'srt'),
+      'application/x-subrip;charset=utf-8'
     );
-  }, [analysis, content.exportPrompt]);
+  }, [analysis]);
 
   async function handleSendChat(prompt?: string) {
     if (!analysisId || isChatLoading) return;
@@ -643,14 +645,14 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                <Link href={`/${locale}`} className="flex min-w-0 flex-1 items-center gap-2.5">
                   <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
                     V
                   </div>
                   <div className="truncate text-base font-semibold tracking-tight">
                     Cyline
                   </div>
-                </div>
+                </Link>
 
                 <Button
                   type="button"
@@ -668,21 +670,17 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
             )}
           </div>
 
-          <div className="hidden flex-col gap-4 md:flex">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
-                  V
-                </div>
-                <div className="text-lg font-semibold tracking-tight">
-                  Cyline
-                </div>
+          <div className="hidden items-center md:flex">
+            <Link href={`/${locale}`} className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-bold">
+                V
               </div>
+              <div className="truncate text-lg font-semibold tracking-tight">
+                Cyline
+              </div>
+            </Link>
 
-              <VideoChatHeaderMenu />
-            </div>
-
-            <div className="w-full xl:max-w-[560px]">
+            <div className="w-full max-w-[560px] px-4">
               <HeaderSearchBar
                 inputUrl={inputUrl}
                 isAnalyzing={isAnalyzing}
@@ -694,6 +692,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                 onAnalyze={() => void handleAnalyze()}
                 onChange={setInputUrl}
               />
+            </div>
+
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <VideoChatHeaderQuickActions />
+              <VideoChatHeaderMenu />
             </div>
           </div>
         </div>
@@ -899,58 +902,39 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           </div>
         </section>
 
-        <aside className="border-border bg-card hidden min-h-0 border-t md:flex md:flex-col xl:h-full xl:overflow-hidden xl:border-t-0 xl:border-l">
-          <Tabs
-            defaultValue="chat"
-            className="flex h-full min-h-[720px] flex-col xl:min-h-0"
-          >
-            <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-1 xl:gap-2.5 xl:overflow-visible">
-              <WorkspaceTabTrigger
-                value="chat"
-                icon={MessageSquare}
-                label={content.chat}
-                className="min-w-[96px] xl:w-full xl:min-w-0"
-              />
-            </TabsList>
-
-            <TabsContent
-              value="chat"
-              className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
-            >
-              <ChatPanel
-                chatInput={chatInput}
-                chatInputPlaceholder={chatInputPlaceholder}
-                chatMessages={chatMessages}
-                chatModel={chatModel}
-                chatScrollAreaRef={desktopChatScrollAreaRef}
-                content={content}
-                isChatAutoFollowEnabled={isChatAutoFollowEnabled}
-                isChatLoading={isChatLoading}
-                analysisState={analysisState}
-                mobile={false}
-                selectedSkill={selectedSkill}
-                onChatAutoFollowChange={handleChatAutoFollowChange}
-                onChatInputChange={setChatInput}
-                onChatModelChange={setChatModel}
-                onClearChatInput={() => setChatInput('')}
-                onClearChat={() => {
-                  setChatMessages([]);
-                  setChatInput('');
-                }}
-                onCopyChatExport={async () => {
-                  try {
-                    await navigator.clipboard?.writeText(chatExportText);
-                    toast.success(content.copyReplySuccess);
-                  } catch {
-                    toast.error(content.copyReplyFailed);
-                  }
-                }}
-                onSendChat={() => void handleSendChat()}
-                onSkillSelect={(value) => void handleSkillSelect(value)}
-                onTimestampClick={seekTo}
-              />
-            </TabsContent>
-          </Tabs>
+        <aside className="border-border bg-card hidden min-h-0 border-t md:flex md:flex-col xl:overflow-hidden xl:border xl:rounded-xl xl:mb-6 xl:mr-6">
+          <ChatPanel
+            chatInput={chatInput}
+            chatInputPlaceholder={chatInputPlaceholder}
+            chatMessages={chatMessages}
+            chatModel={chatModel}
+            chatScrollAreaRef={desktopChatScrollAreaRef}
+            content={content}
+            isChatAutoFollowEnabled={isChatAutoFollowEnabled}
+            isChatLoading={isChatLoading}
+            analysisState={analysisState}
+            mobile={false}
+            selectedSkill={selectedSkill}
+            onChatAutoFollowChange={handleChatAutoFollowChange}
+            onChatInputChange={setChatInput}
+            onChatModelChange={setChatModel}
+            onClearChatInput={() => setChatInput('')}
+            onClearChat={() => {
+              setChatMessages([]);
+              setChatInput('');
+            }}
+            onCopyChatExport={async () => {
+              try {
+                await navigator.clipboard?.writeText(chatExportText);
+                toast.success(content.copyReplySuccess);
+              } catch {
+                toast.error(content.copyReplyFailed);
+              }
+            }}
+            onSendChat={() => void handleSendChat()}
+            onSkillSelect={(value) => void handleSkillSelect(value)}
+            onTimestampClick={seekTo}
+          />
         </aside>
       </main>
 

@@ -63,7 +63,7 @@ export function HeaderSearchBar({
         aria-label="video search"
         autoFocus={expanded}
         className={cn(
-          'border-primary bg-card focus-visible:border-primary h-10 rounded-xl pr-20 pl-10 shadow-xs focus-visible:ring-2 focus-visible:ring-ring/30',
+          'border-primary bg-card h-10 rounded-xl pr-20 pl-10 shadow-xs focus-visible:ring-2 focus-visible:ring-ring/30 md:focus-visible:ring-0 md:shadow-[0_0_8px_color-mix(in_srgb,var(--primary)_25%,transparent),0_0_20px_color-mix(in_srgb,var(--primary)_12%,transparent)]',
           mobile
             ? 'text-[13px] placeholder:text-[12px]'
             : 'text-sm placeholder:text-sm'

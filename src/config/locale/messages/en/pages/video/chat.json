@@ -22,6 +22,8 @@
   "copyReplySuccess": "Reply copied",
   "copyReplyFailed": "Failed to copy reply",
   "copySubtitles": "Copy subtitles",
+  "copySubtitlesSuccess": "Subtitles copied",
+  "copySubtitlesFailed": "Failed to copy subtitles",
   "downloadSubtitles": "Download subtitles",
   "jumpToCurrentSubtitle": "Jump to current subtitle",
   "modelLabel": "Chat model",

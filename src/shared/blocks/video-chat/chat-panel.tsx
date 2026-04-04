@@ -19,6 +19,13 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
   SUPPORTED_AI_MODELS,
@@ -154,9 +161,6 @@ export function ChatPanel({
                 {chatMessages.map((message, index) => (
                   <li key={`${message.role}-${index}`}>
                     <ChatBubble
-                      copyFailedLabel={content.copyReplyFailed}
-                      copyLabel={content.copyReply}
-                      copySuccessLabel={content.copyReplySuccess}
                       message={message}
                       mobile={mobile}
                       onTimestampClick={onTimestampClick}
@@ -207,7 +211,7 @@ export function ChatPanel({
                 'text-foreground placeholder:text-muted-foreground/50 resize-none border-0 !bg-transparent px-0 py-0 shadow-none focus-visible:ring-offset-0',
                 mobile
                   ? 'min-h-10 text-sm focus-visible:ring-0'
-                  : 'min-h-20 text-base focus-visible:ring-ring/30 focus-visible:ring-2'
+                  : 'min-h-20 text-base focus-visible:ring-0'
               )}
               placeholder={chatInputPlaceholder}
             />
@@ -335,41 +339,44 @@ export function ChatPanel({
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <select
+                <Select
+                  value={selectedSkill}
+                  onValueChange={onSkillSelect}
+                >
+                  <SelectTrigger
                     aria-label={content.skill}
-                    value={selectedSkill}
-                    onChange={(event) => onSkillSelect(event.target.value)}
-                    className="border-border bg-background text-foreground focus-visible:border-primary focus-visible:ring-ring/30 h-10 min-w-[132px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-2"
+                    className="border-border bg-background text-foreground h-10 min-w-[132px] rounded-full border px-4 text-sm font-semibold shadow-none focus:ring-0 focus-visible:ring-0"
                   >
-                    <option value="">{content.skill}</option>
+                    <SelectValue placeholder={content.skill} />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
                     {content.prompts.map((prompt) => (
-                      <option key={prompt} value={prompt}>
+                      <SelectItem key={prompt} value={prompt}>
                         {prompt}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
-                </div>
-                <div className="relative">
-                  <select
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={chatModel}
+                  onValueChange={(value) =>
+                    onChatModelChange(value as SupportedAIModelId)
+                  }
+                >
+                  <SelectTrigger
                     aria-label={content.modelLabel}
-                    value={chatModel}
-                    onChange={(event) =>
-                      onChatModelChange(
-                        event.target.value as SupportedAIModelId
-                      )
-                    }
-                    className="border-border bg-background text-foreground focus-visible:border-primary focus-visible:ring-ring/30 h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-2"
+                    className="border-border bg-background text-foreground h-10 min-w-[182px] rounded-full border px-4 text-sm font-semibold shadow-none focus:ring-0 focus-visible:ring-0"
                   >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
                     {SUPPORTED_AI_MODELS.map((modelOption) => (
-                      <option key={modelOption.id} value={modelOption.id}>
+                      <SelectItem key={modelOption.id} value={modelOption.id}>
                         {modelOption.title}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
-                </div>
+                  </SelectContent>
+                </Select>
 
                 <Button
                   type="button"

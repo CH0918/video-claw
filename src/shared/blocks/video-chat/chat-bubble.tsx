@@ -1,8 +1,5 @@
 import { memo } from 'react';
-import { Copy } from 'lucide-react';
-import { toast } from 'sonner';
 
-import { Button } from '@/shared/components/ui/button';
 import { ClaudeCodeLoading } from '@/shared/components/ui/claude-code-loading';
 import { cn } from '@/shared/lib/utils';
 
@@ -10,17 +7,11 @@ import type { Message, VideoChatCopy } from './types';
 import { parseChatTimestampReference } from './utils';
 
 export const ChatBubble = memo(function ChatBubble({
-  copyFailedLabel,
-  copyLabel,
-  copySuccessLabel,
   message,
   mobile = false,
   onTimestampClick,
   streamingLabel,
 }: {
-  copyFailedLabel: string;
-  copyLabel: string;
-  copySuccessLabel: string;
   message: Message;
   mobile?: boolean;
   onTimestampClick?: (seconds: number) => void;
@@ -148,20 +139,6 @@ export const ChatBubble = memo(function ChatBubble({
     });
   }
 
-  async function handleCopyMessage() {
-    if (!message.text.trim() || !navigator.clipboard) {
-      toast.error(copyFailedLabel);
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(message.text);
-      toast.success(copySuccessLabel);
-    } catch {
-      toast.error(copyFailedLabel);
-    }
-  }
-
   return (
     <div className="flex items-start">
       <div
@@ -169,35 +146,31 @@ export const ChatBubble = memo(function ChatBubble({
           'text-foreground max-w-full',
           mobile ? 'text-[13px] leading-6' : 'text-sm leading-7',
           showBubbleChrome
-            ? mobile
-              ? 'bg-muted/50 relative rounded-2xl rounded-tl-sm px-3.5 py-2.5'
-              : 'bg-card/90 border-border relative rounded-xl border p-4 shadow-xs backdrop-blur-sm'
+            ? 'bg-muted/50 relative rounded-2xl rounded-tl-sm px-3.5 py-2.5'
             : 'py-1'
         )}
       >
-        {showBubbleChrome && !mobile ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={copyLabel}
-            title={copyLabel}
-            disabled={!hasMessageText}
-            onClick={() => void handleCopyMessage()}
-            className="text-muted-foreground hover:text-foreground absolute top-4 right-4 size-8 rounded-lg"
-          >
-            <Copy className="size-4" />
-          </Button>
-        ) : null}
         {hasMessageText ? (
-          <div className={cn('space-y-2', !mobile && 'pr-10')}>
-            {lines.map((line, index) =>
-              line ? (
+          <div className="space-y-2">
+            {lines.map((line, index) => {
+              if (!line) {
+                return <div key={`line-${index}`} className="h-3" />;
+              }
+
+              const bulletMatch = line.match(/^(\*|-)\s+(.+)/);
+              if (bulletMatch) {
+                return (
+                  <p key={`line-${index}`} className="flex gap-1.5">
+                    <span className="shrink-0 select-none">•</span>
+                    <span>{renderFormattedLine(bulletMatch[2], index)}</span>
+                  </p>
+                );
+              }
+
+              return (
                 <p key={`line-${index}`}>{renderFormattedLine(line, index)}</p>
-              ) : (
-                <div key={`line-${index}`} className="h-3" />
-              )
-            )}
+              );
+            })}
           </div>
         ) : null}
         {message.isStreaming ? (

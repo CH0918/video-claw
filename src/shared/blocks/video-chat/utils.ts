@@ -325,6 +325,8 @@ export function buildVideoChatCopy(
     copyReplyFailed: t('copyReplyFailed'),
     copyReplySuccess: t('copyReplySuccess'),
     copySubtitles: t('copySubtitles'),
+    copySubtitlesSuccess: t('copySubtitlesSuccess'),
+    copySubtitlesFailed: t('copySubtitlesFailed'),
     collapseVideo: t('collapseVideo'),
     credits: t('credits'),
     downloadSubtitles: t('downloadSubtitles'),

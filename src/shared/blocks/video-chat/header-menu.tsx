@@ -22,6 +22,8 @@ import { authClient, signOut, useSession } from '@/core/auth/client';
 import { Link, usePathname, useRouter } from '@/core/i18n/navigation';
 import { localeNames, locales } from '@/config/locale';
 import { SignModal } from '@/shared/blocks/sign/sign-modal';
+import { LocaleSelector } from '@/shared/blocks/common/locale-selector';
+import { AnimatedThemeToggler } from '@/shared/components/magicui/animated-theme-toggler';
 import {
   Avatar,
   AvatarFallback,
@@ -441,5 +443,28 @@ export function VideoChatHeaderMenu() {
 
       {mounted ? <SignModal /> : null}
     </>
+  );
+}
+
+export function VideoChatHeaderQuickActions() {
+  const { user } = useAppContext();
+
+  const remainingCredits = (user as any)?.credits?.remainingCredits ?? 0;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {user ? (
+        <Link
+          href="/settings/credits"
+          className="border-border bg-card hover:bg-muted text-foreground inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold shadow-xs transition-colors"
+        >
+          <Coins className="text-primary size-3.5" />
+          {remainingCredits}
+        </Link>
+      ) : null}
+
+      <LocaleSelector type="button" className="border-border bg-card text-foreground hover:bg-muted hover:text-foreground" />
+      <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground size-8 rounded-full inline-flex items-center justify-center" />
+    </div>
   );
 }

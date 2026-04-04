@@ -22,6 +22,8 @@
   "copyReplySuccess": "回答已复制",
   "copyReplyFailed": "复制回答失败",
   "copySubtitles": "复制字幕",
+  "copySubtitlesSuccess": "字幕已复制",
+  "copySubtitlesFailed": "复制字幕失败",
   "downloadSubtitles": "下载字幕",
   "jumpToCurrentSubtitle": "跳到当前字幕",
   "modelLabel": "对话模型",
