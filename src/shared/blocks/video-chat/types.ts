@@ -47,6 +47,7 @@ export type VideoChatCopy = {
   chatActionsDescription: string;
   copy: string;
   clear: string;
+  clearChatConfirm: string;
   skill: string;
   skipToContent: string;
   dismissError: string;

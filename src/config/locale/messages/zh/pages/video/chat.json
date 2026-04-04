@@ -51,6 +51,7 @@
   "chatActionsDescription": "选择 Skill、模型，或执行复制与清空操作。",
   "copy": "复制",
   "clear": "清空",
+  "clearChatConfirm": "确定清空所有对话记录吗？",
   "skill": "Skill",
   "skipToContent": "跳到主内容",
   "dismissError": "关闭"

@@ -29,15 +29,12 @@ export const SummaryPanel = memo(function SummaryPanel({
     >
       <ScrollArea className="h-full">
         <div className="flex flex-col gap-5 p-5">
-          <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
+          <h1 className="text-base font-bold tracking-tight lg:text-lg">
             {analysis?.videoInfo.title || 'YouTube Video'}
           </h1>
 
           <div>
-            <h2 className="text-base font-semibold tracking-tight">
-              {content.summaryHeading}
-            </h2>
-            <p className="text-muted-foreground mt-3 text-sm leading-7">
+            <p className="text-muted-foreground text-[13px] leading-6">
               {isLoading
                 ? content.summaryLoading
                 : analysis?.summary.overview || content.summaryEmpty}
@@ -50,12 +47,12 @@ export const SummaryPanel = memo(function SummaryPanel({
                 return (
                   <div
                     key={`${point.timestamp || 'point'}-${index}`}
-                    className="flex gap-3"
+                    className="flex gap-1.5"
                   >
-                    <div className="text-primary min-w-5 pt-0.5 text-sm font-semibold">
+                    <div className="text-primary shrink-0 pt-0.5 text-[13px] font-semibold">
                       {index + 1}.
                     </div>
-                    <p className="text-muted-foreground text-sm leading-6">
+                    <p className="text-muted-foreground text-[13px] leading-6">
                       {timestamp ? (
                         <button
                           type="button"

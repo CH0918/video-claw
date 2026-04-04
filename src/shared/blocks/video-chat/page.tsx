@@ -18,29 +18,24 @@ import {
   Search,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 
 import { localeNames, locales } from '@/config/locale';
 import { Button } from '@/shared/components/ui/button';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-} from '@/shared/components/ui/tabs';
+import { Tabs, TabsContent, TabsList } from '@/shared/components/ui/tabs';
 import { useAppContext } from '@/shared/contexts/app';
+import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { VIDEO_CHAT_DEFAULT_MODEL } from '@/shared/lib/ai-models';
 import { cn } from '@/shared/lib/utils';
 import { buildYouTubeEmbedUrl } from '@/shared/lib/video-analysis/youtube';
-import {
-  VideoAnalysisPayload,
-} from '@/shared/types/video-analysis';
+import { VideoAnalysisPayload } from '@/shared/types/video-analysis';
 
 import { CaptionsPanel } from './captions-panel';
 import { ChatPanel } from './chat-panel';
-import { HeaderSearchBar } from './header-search-bar';
 import { VideoChatHeaderMenu } from './header-menu';
+import { HeaderSearchBar } from './header-search-bar';
 import { MobileVideoDock } from './mobile-video-dock';
 import { SummaryPanel } from './summary-panel';
-import { VideoPlayerCard } from './video-player-card';
 import type { Message, VideoChatPageProps, YouTubePlayer } from './types';
 import {
   buildAssistantIntro,
@@ -58,15 +53,19 @@ import {
   slugify,
   spaceGrotesk,
 } from './utils';
+import { VideoPlayerCard } from './video-player-card';
 import { WorkspaceTabTrigger } from './workspace-tab-trigger';
 
 export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const t = useTranslations('pages.video.chat');
   const content = useMemo(() => buildVideoChatCopy(t), [t]);
   const { user } = useAppContext();
+  const isMobile = useIsMobile();
   const router = useRouter();
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const mobileIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const desktopIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const mobileChatScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const desktopChatScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const hasBootstrappedRef = useRef(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const playbackPollingRef = useRef<number | null>(null);
@@ -123,16 +122,53 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       })),
     []
   );
-  const chatInputPlaceholder =
-    locale === 'zh'
+  const chatInputPlaceholder = isMobile
+    ? content.askPlaceholder
+    : locale === 'zh'
       ? `${content.askPlaceholder}（Enter 发送，Shift+Enter 换行）`
       : `${content.askPlaceholder} (Enter to send, Shift+Enter for a new line)`;
   const isAnalyzing =
     analysisState === 'submitting' || analysisState === 'polling';
   const chatExportText = useMemo(
-    () => chatMessages.map((message) => message.text).join('\n\n'),
+    () =>
+      chatMessages
+        .map((message) =>
+          message.role === 'user'
+            ? `**Q:** ${message.text}`
+            : message.text
+        )
+        .join('\n\n'),
     [chatMessages]
   );
+
+  const getVisibleChatViewports = useCallback(() => {
+    const viewports = [mobileChatScrollAreaRef, desktopChatScrollAreaRef]
+      .map((ref) =>
+        ref.current?.querySelector<HTMLDivElement>(
+          '[data-radix-scroll-area-viewport]'
+        )
+      )
+      .filter((viewport): viewport is HTMLDivElement => Boolean(viewport));
+
+    const visibleViewports = viewports.filter(
+      (viewport) => viewport.getClientRects().length > 0
+    );
+
+    return visibleViewports.length > 0 ? visibleViewports : viewports;
+  }, []);
+
+  const getActiveVideoIframe = useCallback(() => {
+    if (isMobile) {
+      return mobileIframeRef.current || desktopIframeRef.current;
+    }
+
+    return desktopIframeRef.current || mobileIframeRef.current;
+  }, [isMobile]);
+
+  const handleChatAutoFollowChange = useCallback((value: boolean) => {
+    if (chatAutoScrollLockRef.current) return;
+    setIsChatAutoFollowEnabled(value);
+  }, []);
 
   useEffect(() => {
     if (!initialUrl || hasBootstrappedRef.current) return;
@@ -167,47 +203,28 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   }, [videoEmbedUrl]);
 
   useEffect(() => {
-    const viewport = chatScrollAreaRef.current?.querySelector(
-      '[data-radix-scroll-area-viewport]'
-    );
-    if (!viewport) return;
-
-    const isNearBottom = () =>
-      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 32;
-
-    const handleScroll = () => {
-      if (chatAutoScrollLockRef.current) return;
-      setIsChatAutoFollowEnabled(isNearBottom());
-    };
-
-    handleScroll();
-    viewport.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      viewport.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  useEffect(() => {
-    const viewport = chatScrollAreaRef.current?.querySelector(
-      '[data-radix-scroll-area-viewport]'
-    );
-    if (!viewport || !isChatAutoFollowEnabled) return;
+    const viewports = getVisibleChatViewports();
+    if (viewports.length === 0 || !isChatAutoFollowEnabled) return;
 
     chatAutoScrollLockRef.current = true;
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
-      behavior: 'auto',
+    const frameId = window.requestAnimationFrame(() => {
+      viewports.forEach((viewport) => {
+        viewport.scrollTo({
+          top: viewport.scrollHeight,
+          behavior: 'auto',
+        });
+      });
     });
 
     const timeoutId = window.setTimeout(() => {
       chatAutoScrollLockRef.current = false;
-    }, 80);
+    }, 120);
 
     return () => {
+      window.cancelAnimationFrame(frameId);
       window.clearTimeout(timeoutId);
     };
-  }, [chatMessages, isChatAutoFollowEnabled]);
+  }, [chatMessages, getVisibleChatViewports, isChatAutoFollowEnabled]);
 
   useEffect(() => {
     function stopPlaybackPolling() {
@@ -226,7 +243,8 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       }
     }
 
-    if (!videoEmbedUrl || !iframeRef.current) {
+    const activeIframe = getActiveVideoIframe();
+    if (!videoEmbedUrl || !activeIframe) {
       stopPlaybackPolling();
       playerRef.current?.destroy?.();
       playerRef.current = null;
@@ -241,9 +259,10 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
     void loadYouTubeIframeApi()
       .then((YT) => {
-        if (cancelled || !iframeRef.current) return;
+        const targetIframe = getActiveVideoIframe();
+        if (cancelled || !targetIframe) return;
 
-        const player = new YT.Player(iframeRef.current, {
+        const player = new YT.Player(targetIframe, {
           events: {
             onReady: () => {
               if (cancelled) return;
@@ -279,7 +298,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       playerRef.current?.destroy?.();
       playerRef.current = null;
     };
-  }, [videoEmbedUrl]);
+  }, [getActiveVideoIframe, videoEmbedUrl]);
 
   useEffect(() => {
     if (!analysisId || analysisState !== 'polling') return;
@@ -370,31 +389,38 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     }
   }
 
-  const seekTo = useCallback((startSeconds: number) => {
-    setCurrentPlaybackTime(startSeconds);
+  const seekTo = useCallback(
+    (startSeconds: number) => {
+      setCurrentPlaybackTime(startSeconds);
 
-    if (playerRef.current) {
-      playerRef.current.seekTo(Math.floor(startSeconds), true);
-      playerRef.current.playVideo();
-      return;
-    }
+      if (
+        playerRef.current &&
+        typeof playerRef.current.seekTo === 'function' &&
+        typeof playerRef.current.playVideo === 'function'
+      ) {
+        playerRef.current.seekTo(Math.floor(startSeconds), true);
+        playerRef.current.playVideo();
+        return;
+      }
 
-    const targetWindow = iframeRef.current?.contentWindow;
-    if (!targetWindow) return;
+      const targetWindow = getActiveVideoIframe()?.contentWindow;
+      if (!targetWindow) return;
 
-    const command = (func: string, args: unknown[]) =>
-      targetWindow.postMessage(
-        JSON.stringify({
-          event: 'command',
-          func,
-          args,
-        }),
-        'https://www.youtube.com'
-      );
+      const command = (func: string, args: unknown[]) =>
+        targetWindow.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func,
+            args,
+          }),
+          'https://www.youtube.com'
+        );
 
-    command('seekTo', [Math.floor(startSeconds), true]);
-    command('playVideo', []);
-  }, []);
+      command('seekTo', [Math.floor(startSeconds), true]);
+      command('playVideo', []);
+    },
+    [getActiveVideoIframe]
+  );
 
   const handleCopySubtitles = useCallback(async () => {
     if (!analysis?.transcript?.length || !navigator.clipboard) return;
@@ -421,6 +447,8 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
 
     const nextInput = String(prompt || chatInput).trim();
     if (!nextInput) return;
+
+    setIsChatAutoFollowEnabled(true);
 
     const userMessage: Message = { role: 'user', text: nextInput };
     const nextMessages = [...chatMessages, userMessage];
@@ -455,7 +483,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
           setChatMessages((current) =>
             current.map((message, index) =>
               index === assistantIndex
-                ? { ...message, text: `${message.text}${String(payload.text || '')}`, isStreaming: true }
+                ? {
+                    ...message,
+                    text: `${message.text}${String(payload.text || '')}`,
+                    isStreaming: true,
+                  }
                 : message
             )
           );
@@ -469,8 +501,12 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                 ? {
                     ...message,
                     text: String(payload.answer || message.text || ''),
-                    timestamps: Array.isArray(payload.timestamps) ? payload.timestamps : [],
-                    citations: Array.isArray(payload.citations) ? payload.citations : [],
+                    timestamps: Array.isArray(payload.timestamps)
+                      ? payload.timestamps
+                      : [],
+                    citations: Array.isArray(payload.citations)
+                      ? payload.citations
+                      : [],
                     isStreaming: false,
                   }
                 : message
@@ -487,7 +523,11 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       setChatMessages((current) =>
         current.map((message, index) =>
           index === assistantIndex
-            ? { ...message, text: error?.message || content.sendFailed, isStreaming: false }
+            ? {
+                ...message,
+                text: error?.message || content.sendFailed,
+                isStreaming: false,
+              }
             : message
         )
       );
@@ -566,7 +606,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     >
       <a
         href="#video-chat-main"
-        className="bg-primary text-primary-foreground fixed top-2 left-2 z-50 rounded-lg px-4 py-2 text-sm font-medium opacity-0 pointer-events-none focus:opacity-100 focus:pointer-events-auto"
+        className="bg-primary text-primary-foreground pointer-events-none fixed top-2 left-2 z-50 rounded-lg px-4 py-2 text-sm font-medium opacity-0 focus:pointer-events-auto focus:opacity-100"
       >
         {content.skipToContent}
       </a>
@@ -659,11 +699,14 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
         </div>
       </header>
 
-      <main id="video-chat-main" className="mx-auto flex h-[calc(100dvh-65px)] w-full max-w-[1360px] flex-col overflow-hidden md:h-auto md:min-h-[calc(100vh-65px)] md:overflow-visible xl:grid xl:h-[calc(100vh-65px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]">
+      <main
+        id="video-chat-main"
+        className="mx-auto flex h-[calc(100dvh-65px)] w-full max-w-[1360px] flex-col overflow-hidden md:h-auto md:min-h-[calc(100vh-65px)] md:overflow-visible xl:grid xl:h-[calc(100vh-65px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden 2xl:max-w-[1440px]"
+      >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 md:hidden">
           <div className="shrink-0 pb-4">
             <MobileVideoDock
-              iframeRef={iframeRef}
+              iframeRef={mobileIframeRef}
               title={analysis?.videoInfo.title || 'YouTube Player'}
               videoEmbedUrl={videoEmbedUrl}
               isCollapsed={isMobileVideoCollapsed}
@@ -680,13 +723,34 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
             defaultValue="captions"
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <TabsList className="bg-muted text-muted-foreground h-auto w-full shrink-0 justify-start gap-1 overflow-x-auto rounded-xl p-0.5">
-              <WorkspaceTabTrigger value="captions" icon={Captions} label={content.captions} compact className="min-w-[84px]" />
-              <WorkspaceTabTrigger value="summary" icon={List} label={content.summary} compact className="min-w-[84px]" />
-              <WorkspaceTabTrigger value="chat" icon={MessageSquare} label={content.chat} compact className="min-w-[84px]" />
+            <TabsList className="text-muted-foreground mx-auto h-auto w-fit shrink-0 gap-1 border-0 bg-transparent p-0">
+              <WorkspaceTabTrigger
+                value="captions"
+                icon={Captions}
+                label={content.captions}
+                compact
+                className="min-w-[84px]"
+              />
+              <WorkspaceTabTrigger
+                value="summary"
+                icon={List}
+                label={content.summary}
+                compact
+                className="min-w-[84px]"
+              />
+              <WorkspaceTabTrigger
+                value="chat"
+                icon={MessageSquare}
+                label={content.chat}
+                compact
+                className="min-w-[84px]"
+              />
             </TabsList>
 
-            <TabsContent value="captions" className="mt-3 min-h-0 flex-1 overflow-hidden outline-none">
+            <TabsContent
+              value="captions"
+              className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
+            >
               <CaptionsPanel
                 transcriptKey={analysis?.analysisId || analysisId}
                 content={content}
@@ -697,7 +761,9 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                 mobile
                 subtitleLanguage={subtitleLanguage}
                 subtitleLanguages={subtitleLanguages}
-                onToggleBilingual={() => setIsBilingualCaptions((current) => !current)}
+                onToggleBilingual={() =>
+                  setIsBilingualCaptions((current) => !current)
+                }
                 onSubtitleLanguageChange={(value) => {
                   setSubtitleLanguage(value);
                   void ensureSubtitleTranslation(value);
@@ -708,32 +774,53 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               />
             </TabsContent>
 
-            <TabsContent value="summary" className="mt-3 min-h-0 flex-1 overflow-hidden outline-none">
+            <TabsContent
+              value="summary"
+              className="mt-3 min-h-0 flex-1 overflow-hidden outline-none"
+            >
               <SummaryPanel
                 content={content}
                 analysis={analysis}
-                isLoading={analysisState === 'submitting' || analysisState === 'polling'}
+                isLoading={
+                  analysisState === 'submitting' || analysisState === 'polling'
+                }
                 mobile
                 onTimestampClick={seekTo}
               />
             </TabsContent>
 
-            <TabsContent value="chat" className="mt-3 min-h-0 flex-1 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:h-full data-[state=active]:flex-col">
+            <TabsContent
+              value="chat"
+              className="mt-3 min-h-0 flex-1 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:h-full data-[state=active]:flex-col"
+            >
               <ChatPanel
                 chatInput={chatInput}
                 chatInputPlaceholder={chatInputPlaceholder}
                 chatMessages={chatMessages}
                 chatModel={chatModel}
-                chatScrollAreaRef={chatScrollAreaRef}
+                chatScrollAreaRef={mobileChatScrollAreaRef}
                 content={content}
+                isChatAutoFollowEnabled={isChatAutoFollowEnabled}
                 isChatLoading={isChatLoading}
                 analysisState={analysisState}
                 mobile
                 selectedSkill={selectedSkill}
+                onChatAutoFollowChange={handleChatAutoFollowChange}
                 onChatInputChange={setChatInput}
                 onChatModelChange={setChatModel}
                 onClearChatInput={() => setChatInput('')}
-                onCopyChatExport={() => navigator.clipboard?.writeText(chatExportText)}
+                onClearChat={() => {
+                  setChatMessages([]);
+                  setChatInput('');
+                }}
+                onCopyChatExport={async () => {
+                  try {
+                    await navigator.clipboard?.writeText(chatExportText);
+                    toast.success(content.copyReplySuccess);
+                  } catch {
+                    toast.error(content.copyReplyFailed);
+                  }
+                }}
                 onSendChat={() => void handleSendChat()}
                 onSkillSelect={(value) => void handleSkillSelect(value)}
                 onTimestampClick={seekTo}
@@ -745,19 +832,33 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
         <section className="hidden min-w-0 px-4 pb-4 md:block lg:px-6 lg:pb-6 xl:h-full xl:min-h-0 xl:overflow-hidden xl:pt-0">
           <div className="flex h-full min-h-[720px] flex-col gap-5 xl:min-h-0">
             <VideoPlayerCard
-              iframeRef={iframeRef}
+              iframeRef={desktopIframeRef}
               title={analysis?.videoInfo.title || 'YouTube Player'}
               videoEmbedUrl={videoEmbedUrl}
               onAnalyze={() => void handleAnalyze()}
             />
 
-            <Tabs defaultValue="captions" className="flex min-h-0 flex-1 flex-col">
+            <Tabs
+              defaultValue="captions"
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <TabsList className="bg-muted text-muted-foreground inline-flex h-10 w-fit shrink-0 items-center justify-start rounded-xl p-1">
-                <WorkspaceTabTrigger value="captions" icon={Captions} label={content.captions} />
-                <WorkspaceTabTrigger value="summary" icon={List} label={content.summary} />
+                <WorkspaceTabTrigger
+                  value="captions"
+                  icon={Captions}
+                  label={content.captions}
+                />
+                <WorkspaceTabTrigger
+                  value="summary"
+                  icon={List}
+                  label={content.summary}
+                />
               </TabsList>
 
-              <TabsContent value="captions" className="mt-4 min-h-0 flex-1 outline-none">
+              <TabsContent
+                value="captions"
+                className="mt-4 min-h-0 flex-1 outline-none"
+              >
                 <CaptionsPanel
                   transcriptKey={analysis?.analysisId || analysisId}
                   content={content}
@@ -767,7 +868,9 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                   isSubtitleTranslating={isSubtitleTranslating}
                   subtitleLanguage={subtitleLanguage}
                   subtitleLanguages={subtitleLanguages}
-                  onToggleBilingual={() => setIsBilingualCaptions((current) => !current)}
+                  onToggleBilingual={() =>
+                    setIsBilingualCaptions((current) => !current)
+                  }
                   onSubtitleLanguageChange={(value) => {
                     setSubtitleLanguage(value);
                     void ensureSubtitleTranslation(value);
@@ -778,11 +881,17 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="summary" className="mt-4 min-h-0 flex-1 outline-none">
+              <TabsContent
+                value="summary"
+                className="mt-4 min-h-0 flex-1 outline-none"
+              >
                 <SummaryPanel
                   content={content}
                   analysis={analysis}
-                  isLoading={analysisState === 'submitting' || analysisState === 'polling'}
+                  isLoading={
+                    analysisState === 'submitting' ||
+                    analysisState === 'polling'
+                  }
                   onTimestampClick={seekTo}
                 />
               </TabsContent>
@@ -791,7 +900,10 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
         </section>
 
         <aside className="border-border bg-card hidden min-h-0 border-t md:flex md:flex-col xl:h-full xl:overflow-hidden xl:border-t-0 xl:border-l">
-          <Tabs defaultValue="chat" className="flex h-full min-h-[720px] flex-col xl:min-h-0">
+          <Tabs
+            defaultValue="chat"
+            className="flex h-full min-h-[720px] flex-col xl:min-h-0"
+          >
             <TabsList className="border-border bg-muted h-auto w-full shrink-0 justify-start gap-2 overflow-x-auto rounded-none border-b px-4 py-3 xl:grid xl:grid-cols-1 xl:gap-2.5 xl:overflow-visible">
               <WorkspaceTabTrigger
                 value="chat"
@@ -801,22 +913,38 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
               />
             </TabsList>
 
-            <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col outline-none">
+            <TabsContent
+              value="chat"
+              className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
+            >
               <ChatPanel
                 chatInput={chatInput}
                 chatInputPlaceholder={chatInputPlaceholder}
                 chatMessages={chatMessages}
                 chatModel={chatModel}
-                chatScrollAreaRef={chatScrollAreaRef}
+                chatScrollAreaRef={desktopChatScrollAreaRef}
                 content={content}
+                isChatAutoFollowEnabled={isChatAutoFollowEnabled}
                 isChatLoading={isChatLoading}
                 analysisState={analysisState}
                 mobile={false}
                 selectedSkill={selectedSkill}
+                onChatAutoFollowChange={handleChatAutoFollowChange}
                 onChatInputChange={setChatInput}
                 onChatModelChange={setChatModel}
                 onClearChatInput={() => setChatInput('')}
-                onCopyChatExport={() => navigator.clipboard?.writeText(chatExportText)}
+                onClearChat={() => {
+                  setChatMessages([]);
+                  setChatInput('');
+                }}
+                onCopyChatExport={async () => {
+                  try {
+                    await navigator.clipboard?.writeText(chatExportText);
+                    toast.success(content.copyReplySuccess);
+                  } catch {
+                    toast.error(content.copyReplyFailed);
+                  }
+                }}
                 onSendChat={() => void handleSendChat()}
                 onSkillSelect={(value) => void handleSkillSelect(value)}
                 onTimestampClick={seekTo}

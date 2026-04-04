@@ -31,11 +31,13 @@ export const ChatBubble = memo(function ChatBubble({
       <div className="flex justify-end">
         <div
           className={cn(
-            'bg-primary text-primary-foreground max-w-[75%] rounded-xl px-4 py-3 leading-6',
-            mobile ? 'text-[13px] leading-5.5' : 'text-sm'
+            'bg-primary/8 dark:bg-primary/12 max-w-[85%] rounded-2xl rounded-tr-sm px-3.5 py-2.5',
+            mobile ? 'text-[13px] leading-6' : 'text-sm leading-6'
           )}
         >
-          {message.text}
+          <p className="text-primary font-semibold">
+            {message.text}
+          </p>
         </div>
       </div>
     );
@@ -168,12 +170,12 @@ export const ChatBubble = memo(function ChatBubble({
           mobile ? 'text-[13px] leading-6' : 'text-sm leading-7',
           showBubbleChrome
             ? mobile
-              ? 'relative py-2'
+              ? 'bg-muted/50 relative rounded-2xl rounded-tl-sm px-3.5 py-2.5'
               : 'bg-card/90 border-border relative rounded-xl border p-4 shadow-xs backdrop-blur-sm'
             : 'py-1'
         )}
       >
-        {showBubbleChrome ? (
+        {showBubbleChrome && !mobile ? (
           <Button
             type="button"
             variant="ghost"
@@ -182,16 +184,13 @@ export const ChatBubble = memo(function ChatBubble({
             title={copyLabel}
             disabled={!hasMessageText}
             onClick={() => void handleCopyMessage()}
-            className={cn(
-              'text-muted-foreground hover:text-foreground absolute rounded-lg',
-              mobile ? 'top-1 right-0 size-10' : 'top-4 right-4 size-8'
-            )}
+            className="text-muted-foreground hover:text-foreground absolute top-4 right-4 size-8 rounded-lg"
           >
             <Copy className="size-4" />
           </Button>
         ) : null}
         {hasMessageText ? (
-          <div className={cn('space-y-2 pr-10', mobile && 'pr-9')}>
+          <div className={cn('space-y-2', !mobile && 'pr-10')}>
             {lines.map((line, index) =>
               line ? (
                 <p key={`line-${index}`}>{renderFormattedLine(line, index)}</p>

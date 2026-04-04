@@ -1,20 +1,23 @@
-import { useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   ArrowUp,
   ChevronDown,
   Clipboard,
   Eraser,
+  Plus,
   SlidersHorizontal,
+  X,
 } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/shared/components/ui/drawer';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
@@ -33,13 +36,16 @@ export function ChatPanel({
   chatModel,
   chatScrollAreaRef,
   content,
+  isChatAutoFollowEnabled,
   isChatLoading,
   analysisState,
   mobile = false,
   selectedSkill,
+  onChatAutoFollowChange,
   onChatInputChange,
   onChatModelChange,
   onClearChatInput,
+  onClearChat,
   onCopyChatExport,
   onSendChat,
   onSkillSelect,
@@ -51,19 +57,79 @@ export function ChatPanel({
   chatModel: SupportedAIModelId;
   chatScrollAreaRef: RefObject<HTMLDivElement | null>;
   content: VideoChatCopy;
+  isChatAutoFollowEnabled: boolean;
   isChatLoading: boolean;
   analysisState: 'idle' | 'submitting' | 'polling' | 'ready' | 'error';
   mobile?: boolean;
   selectedSkill: string;
+  onChatAutoFollowChange: (value: boolean) => void;
   onChatInputChange: (value: string) => void;
   onChatModelChange: (value: SupportedAIModelId) => void;
   onClearChatInput: () => void;
+  onClearChat: () => void;
   onCopyChatExport: () => void;
   onSendChat: () => void;
   onSkillSelect: (value: string) => void;
   onTimestampClick: (seconds: number) => void;
 }) {
-  const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
+  const [isActionCardOpen, setIsActionCardOpen] = useState(false);
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const actionCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActionCardOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        actionCardRef.current &&
+        !actionCardRef.current.contains(event.target as Node)
+      ) {
+        setIsActionCardOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isActionCardOpen]);
+
+  useEffect(() => {
+    const viewport = chatScrollAreaRef.current?.querySelector<HTMLDivElement>(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport) return;
+
+    const isNearBottom = () =>
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 32;
+    const syncAutoFollow = () => {
+      if (viewport.getClientRects().length === 0) return;
+      onChatAutoFollowChange(isNearBottom());
+    };
+
+    syncAutoFollow();
+    viewport.addEventListener('scroll', syncAutoFollow, { passive: true });
+
+    return () => {
+      viewport.removeEventListener('scroll', syncAutoFollow);
+    };
+  }, [chatScrollAreaRef, onChatAutoFollowChange]);
+
+  useEffect(() => {
+    if (!isChatAutoFollowEnabled) return;
+
+    const viewport = chatScrollAreaRef.current?.querySelector<HTMLDivElement>(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport || viewport.getClientRects().length === 0) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      viewport.scrollTo({
+        top: viewport.scrollHeight,
+        behavior: 'auto',
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [chatScrollAreaRef, isChatAutoFollowEnabled]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -84,7 +150,7 @@ export function ChatPanel({
         >
           <div className="space-y-4 pb-4" role="log" aria-live="polite">
             {chatMessages.length > 0 ? (
-              <ul className="space-y-4 list-none p-0 m-0">
+              <ul className="m-0 list-none space-y-4 p-0">
                 {chatMessages.map((message, index) => (
                   <li key={`${message.role}-${index}`}>
                     <ChatBubble
@@ -138,24 +204,118 @@ export function ChatPanel({
                 }
               }}
               className={cn(
-                'text-foreground resize-none border-0 !bg-transparent px-0 py-0 shadow-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-0',
+                'text-foreground placeholder:text-muted-foreground/50 resize-none border-0 !bg-transparent px-0 py-0 shadow-none focus-visible:ring-offset-0',
                 mobile
-                  ? 'min-h-10 text-sm placeholder:text-[11px]'
-                  : 'min-h-20 text-base placeholder:text-sm'
+                  ? 'min-h-10 text-sm focus-visible:ring-0'
+                  : 'min-h-20 text-base focus-visible:ring-ring/30 focus-visible:ring-2'
               )}
               placeholder={chatInputPlaceholder}
             />
             {mobile ? (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="relative mt-1.5 flex items-center gap-0.5">
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => setIsActionDrawerOpen(true)}
-                  className="border-border bg-background text-foreground h-11 flex-1 justify-center rounded-full px-3 text-xs font-medium shadow-none"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={content.clear}
+                  onClick={() => {
+                    if (chatMessages.length === 0) return;
+                    setIsClearDialogOpen(true);
+                  }}
+                  className="text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-full"
                 >
-                  <SlidersHorizontal className="size-3.5" />
-                  {content.moreActions}
+                  <Eraser className="size-3.5" />
                 </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={content.copy}
+                  onClick={onCopyChatExport}
+                  className="text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-full"
+                >
+                  <Clipboard className="size-3.5" />
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={content.moreActions}
+                  onClick={() => setIsActionCardOpen((v) => !v)}
+                  className={cn(
+                    'size-8 shrink-0 rounded-full',
+                    isActionCardOpen
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Plus className="size-3.5" />
+                </Button>
+
+                {isActionCardOpen && (
+                  <div
+                    ref={actionCardRef}
+                    className="border-border bg-card absolute bottom-full left-0 z-20 mb-2 w-56 rounded-xl border p-3 shadow-lg"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-foreground text-xs font-medium">
+                        {content.chatActionsTitle}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Close"
+                        onClick={() => setIsActionCardOpen(false)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <select
+                          aria-label={content.skill}
+                          value={selectedSkill}
+                          onChange={(event) => {
+                            onSkillSelect(event.target.value);
+                            setIsActionCardOpen(false);
+                          }}
+                          className="border-border bg-background text-foreground focus-visible:border-primary focus-visible:ring-ring/30 h-8 w-full appearance-none rounded-lg border py-0 pr-8 pl-3 text-xs font-medium shadow-none outline-none focus-visible:ring-2"
+                        >
+                          <option value="">{content.skill}</option>
+                          {content.prompts.map((prompt) => (
+                            <option key={prompt} value={prompt}>
+                              {prompt}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3 -translate-y-1/2" />
+                      </div>
+                      <div className="relative">
+                        <select
+                          aria-label={content.modelLabel}
+                          value={chatModel}
+                          onChange={(event) =>
+                            onChatModelChange(
+                              event.target.value as SupportedAIModelId
+                            )
+                          }
+                          className="border-border bg-background text-foreground focus-visible:border-primary focus-visible:ring-ring/30 h-8 w-full appearance-none rounded-lg border py-0 pr-8 pl-3 text-xs font-medium shadow-none outline-none focus-visible:ring-2"
+                        >
+                          {SUPPORTED_AI_MODELS.map((modelOption) => (
+                            <option key={modelOption.id} value={modelOption.id}>
+                              {modelOption.title}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3 -translate-y-1/2" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex-1" />
 
                 <Button
                   size="icon"
@@ -164,13 +324,13 @@ export function ChatPanel({
                   disabled={analysisState !== 'ready' || isChatLoading}
                   onClick={onSendChat}
                   className={cn(
-                    'size-11 shrink-0 rounded-full',
+                    'size-8 shrink-0 rounded-full',
                     chatInput.trim()
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                       : 'bg-primary/20 text-primary hover:bg-primary/25'
                   )}
                 >
-                  <ArrowUp className="size-4" />
+                  <ArrowUp className="size-3.5" />
                 </Button>
               </div>
             ) : (
@@ -180,7 +340,7 @@ export function ChatPanel({
                     aria-label={content.skill}
                     value={selectedSkill}
                     onChange={(event) => onSkillSelect(event.target.value)}
-                    className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[132px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                    className="border-border bg-background text-foreground focus-visible:border-primary focus-visible:ring-ring/30 h-10 min-w-[132px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-2"
                   >
                     <option value="">{content.skill}</option>
                     {content.prompts.map((prompt) => (
@@ -200,7 +360,7 @@ export function ChatPanel({
                         event.target.value as SupportedAIModelId
                       )
                     }
-                    className="border-border bg-background text-foreground focus-visible:border-primary h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                    className="border-border bg-background text-foreground focus-visible:border-primary focus-visible:ring-ring/30 h-10 min-w-[182px] appearance-none rounded-full border py-0 pr-9 pl-4 text-sm font-semibold shadow-none outline-none focus-visible:ring-2"
                   >
                     {SUPPORTED_AI_MODELS.map((modelOption) => (
                       <option key={modelOption.id} value={modelOption.id}>
@@ -254,91 +414,40 @@ export function ChatPanel({
         </div>
       </div>
 
-      {mobile ? (
-        <Drawer open={isActionDrawerOpen} onOpenChange={setIsActionDrawerOpen}>
-          <DrawerContent className="rounded-t-[28px]">
-            <DrawerHeader className="text-left">
-              <DrawerTitle className="text-base">{content.chatActionsTitle}</DrawerTitle>
-              <DrawerDescription>
-                {content.chatActionsDescription}
-              </DrawerDescription>
-            </DrawerHeader>
+      <Dialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <DialogContent showCloseButton={false} className="max-w-xs rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {content.clear}
+            </DialogTitle>
+            <DialogDescription>
+              {content.clearChatConfirm}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 rounded-full"
+              onClick={() => setIsClearDialogOpen(false)}
+            >
+              {content.dismissError}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1 rounded-full"
+              onClick={() => {
+                onClearChat();
+                setIsClearDialogOpen(false);
+              }}
+            >
+              {content.clear}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <div className="space-y-4 px-4 pb-6">
-              <div className="space-y-2">
-                <label className="text-foreground text-xs font-medium">
-                  {content.skill}
-                </label>
-                <div className="relative">
-                  <select
-                    aria-label={content.skill}
-                    value={selectedSkill}
-                    onChange={(event) => {
-                      onSkillSelect(event.target.value);
-                      setIsActionDrawerOpen(false);
-                    }}
-                    className="border-border bg-background text-foreground focus-visible:border-primary h-11 w-full appearance-none rounded-2xl border py-0 pr-10 pl-4 text-sm font-medium shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                  >
-                    <option value="">{content.skill}</option>
-                    {content.prompts.map((prompt) => (
-                      <option key={prompt} value={prompt}>
-                        {prompt}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-foreground text-xs font-medium">
-                  {content.modelLabel}
-                </label>
-                <div className="relative">
-                  <select
-                    aria-label={content.modelLabel}
-                    value={chatModel}
-                    onChange={(event) =>
-                      onChatModelChange(
-                        event.target.value as SupportedAIModelId
-                      )
-                    }
-                    className="border-border bg-background text-foreground focus-visible:border-primary h-11 w-full appearance-none rounded-2xl border py-0 pr-10 pl-4 text-sm font-medium shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                  >
-                    {SUPPORTED_AI_MODELS.map((modelOption) => (
-                      <option key={modelOption.id} value={modelOption.id}>
-                        {modelOption.title}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onCopyChatExport}
-                  className="h-10 rounded-xl"
-                >
-                  <Clipboard className="size-4" />
-                  {content.copy}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onClearChatInput}
-                  className="h-10 rounded-xl"
-                >
-                  <Eraser className="size-4" />
-                  {content.clear}
-                </Button>
-              </div>
-            </div>
-          </DrawerContent>
-        </Drawer>
-      ) : null}
     </div>
   );
 }

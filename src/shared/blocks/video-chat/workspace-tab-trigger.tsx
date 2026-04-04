@@ -20,8 +20,9 @@ export function WorkspaceTabTrigger({
     <TabsTrigger
       value={value}
       className={cn(
+        'gap-1.5',
         compact
-          ? 'h-8 rounded-md px-3 text-[12px] font-medium data-[state=active]:shadow-xs'
+          ? 'h-8 rounded-full px-3 text-[12px] font-medium data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none'
           : 'h-9 rounded-lg px-4 text-[13px] font-medium data-[state=active]:shadow-xs',
         className
       )}

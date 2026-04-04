@@ -64,7 +64,7 @@ export function CaptionsPanel({
 
     if (!viewport || !activeItem || activeSubtitleIndex < 0) {
       setIsCurrentSubtitleInView(false);
-      return;
+      return false;
     }
 
     const viewportRect = viewport.getBoundingClientRect();
@@ -73,6 +73,27 @@ export function CaptionsPanel({
       itemRect.bottom > viewportRect.top && itemRect.top < viewportRect.bottom;
 
     setIsCurrentSubtitleInView(isVisible);
+    return isVisible;
+  }
+
+  function scrollToActiveSubtitle(behavior: ScrollBehavior = 'smooth') {
+    const activeItem = itemRefs.current[activeSubtitleIndex];
+    if (!activeItem) return;
+
+    autoScrollLockRef.current = true;
+    activeItem.scrollIntoView({
+      behavior,
+      block: 'center',
+    });
+
+    if (autoScrollUnlockTimeoutRef.current !== null) {
+      window.clearTimeout(autoScrollUnlockTimeoutRef.current);
+    }
+
+    autoScrollUnlockTimeoutRef.current = window.setTimeout(() => {
+      autoScrollLockRef.current = false;
+      checkCurrentSubtitleVisibility();
+    }, 500);
   }
 
   useEffect(() => {
@@ -95,9 +116,16 @@ export function CaptionsPanel({
     if (!viewport) return;
 
     const handleScroll = () => {
-      checkCurrentSubtitleVisibility();
+      const isVisible = checkCurrentSubtitleVisibility();
 
-      if (autoScrollLockRef.current || !isAutoFollowEnabled) return;
+      if (
+        autoScrollLockRef.current ||
+        !isAutoFollowEnabled ||
+        isVisible ||
+        activeSubtitleIndex < 0
+      ) {
+        return;
+      }
       setIsAutoFollowEnabled(false);
     };
 
@@ -106,51 +134,25 @@ export function CaptionsPanel({
     return () => {
       viewport.removeEventListener('scroll', handleScroll);
     };
-  }, [isAutoFollowEnabled]);
+  }, [activeSubtitleIndex, isAutoFollowEnabled]);
 
   useEffect(() => {
     checkCurrentSubtitleVisibility();
 
     if (!isAutoFollowEnabled || activeSubtitleIndex < 0) return;
 
-    const activeItem = itemRefs.current[activeSubtitleIndex];
-    if (!activeItem) return;
-
-    autoScrollLockRef.current = true;
-    activeItem.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
+    const frameId = window.requestAnimationFrame(() => {
+      scrollToActiveSubtitle();
     });
 
-    if (autoScrollUnlockTimeoutRef.current !== null) {
-      window.clearTimeout(autoScrollUnlockTimeoutRef.current);
-    }
-
-    autoScrollUnlockTimeoutRef.current = window.setTimeout(() => {
-      autoScrollLockRef.current = false;
-      checkCurrentSubtitleVisibility();
-    }, 450);
-  }, [activeSubtitleIndex, isAutoFollowEnabled]);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [activeSubtitleIndex, displayedSubtitleItems, isAutoFollowEnabled]);
 
   function handleJumpToCurrentSubtitle() {
     setIsAutoFollowEnabled(true);
-    const activeItem = itemRefs.current[activeSubtitleIndex];
-    if (!activeItem) return;
-
-    autoScrollLockRef.current = true;
-    activeItem.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    });
-
-    if (autoScrollUnlockTimeoutRef.current !== null) {
-      window.clearTimeout(autoScrollUnlockTimeoutRef.current);
-    }
-
-    autoScrollUnlockTimeoutRef.current = window.setTimeout(() => {
-      autoScrollLockRef.current = false;
-      checkCurrentSubtitleVisibility();
-    }, 450);
+    scrollToActiveSubtitle();
   }
 
   return (
@@ -160,17 +162,24 @@ export function CaptionsPanel({
         mobile ? 'rounded-[18px]' : 'rounded-[18px]'
       )}
     >
-      <div className="border-border bg-background/95 flex flex-wrap items-center gap-2 border-b p-3">
-        <div className="flex flex-1 flex-wrap items-center gap-3">
+      <div
+        className={cn(
+          'border-border bg-background/95 flex flex-wrap items-center gap-2 border-b',
+          mobile ? 'px-2.5 py-1.5' : 'p-3'
+        )}
+      >
+        <div className="flex flex-1 flex-wrap items-center gap-2">
           <SubtitleActionButton
             icon={Copy}
             label={content.copySubtitles}
             inverted
+            compact={mobile}
             onClick={onCopySubtitles}
           />
           <SubtitleActionButton
             icon={Download}
             label={content.downloadSubtitles}
+            compact={mobile}
             onClick={onDownloadSubtitles}
           />
 
@@ -182,9 +191,9 @@ export function CaptionsPanel({
               value={subtitleLanguage}
               onChange={(event) => onSubtitleLanguageChange(event.target.value)}
               className={cn(
-                'border-border bg-card text-foreground focus-visible:border-primary appearance-none border py-0 pr-9 pl-8 font-medium shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring/30',
+                'border-border bg-card text-foreground focus-visible:border-primary focus-visible:ring-ring/30 appearance-none border py-0 pr-9 pl-8 font-medium shadow-none outline-none focus-visible:ring-2',
                 mobile
-                  ? 'h-8 min-w-[50px] rounded-md pr-8 pl-7 text-[11px]'
+                  ? 'h-7 min-w-[50px] rounded-md pr-8 pl-7 text-[11px]'
                   : 'h-9 min-w-[168px] rounded-lg text-sm sm:min-w-[220px]'
               )}
             >
@@ -197,10 +206,13 @@ export function CaptionsPanel({
             <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2" />
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <label
               htmlFor="bilingual-captions-switch"
-              className="text-foreground text-sm font-medium"
+              className={cn(
+                'text-foreground font-medium',
+                mobile ? 'text-xs' : 'text-sm'
+              )}
             >
               {content.bilingualCaptions}
             </label>
@@ -215,7 +227,7 @@ export function CaptionsPanel({
 
       <div className="relative min-h-0 flex-1">
         <ScrollArea ref={scrollAreaRef} className="h-full min-h-0">
-          <ul className="space-y-3 p-4 list-none m-0">
+          <ul className="m-0 list-none space-y-0 px-2.5 py-2">
             {displayedSubtitleItems.length > 0 ? (
               displayedSubtitleItems.map((item, index) => (
                 <li
@@ -234,7 +246,7 @@ export function CaptionsPanel({
                 </li>
               ))
             ) : (
-              <li className="text-muted-foreground text-sm leading-7 list-none">
+              <li className="text-muted-foreground list-none text-sm leading-7">
                 {content.emptyCaptions}
               </li>
             )}
@@ -268,11 +280,13 @@ function SubtitleActionButton({
   icon: Icon,
   label,
   inverted = false,
+  compact = false,
   onClick,
 }: {
   icon: LucideIcon;
   label: string;
   inverted?: boolean;
+  compact?: boolean;
   onClick?: () => void | Promise<void>;
 }) {
   return (
@@ -284,13 +298,14 @@ function SubtitleActionButton({
       aria-label={label}
       title={label}
       className={cn(
-        'h-9 w-9 rounded-lg border shadow-none',
+        'rounded-lg border shadow-none',
+        compact ? 'h-7 w-7' : 'h-9 w-9',
         inverted
           ? 'bg-primary text-primary-foreground hover:bg-primary/90 border-transparent'
           : 'border-border bg-card text-foreground hover:bg-muted'
       )}
     >
-      <Icon className="size-4" />
+      <Icon className={compact ? 'size-3.5' : 'size-4'} />
     </Button>
   );
 }
@@ -341,26 +356,33 @@ function SubtitleListItem({
   }
 
   return (
-    <div
-      className={cn(
-        'rounded-2xl px-4 py-4',
-        isActive ? 'bg-accent/70 dark:bg-accent/35' : 'bg-transparent'
-      )}
-    >
-      <div className="flex items-start gap-4">
+    <div className="py-1.5">
+      <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={() => onJumpToTimestamp?.(item.start)}
-          className="bg-primary/12 text-primary dark:bg-primary/18 inline-flex shrink-0 rounded-xl px-2.5 py-1.5 text-sm font-semibold transition-opacity hover:opacity-85"
+          className={cn(
+            'mt-0.5 inline-flex shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold leading-5 transition-opacity hover:opacity-85',
+            isActive
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-primary/12 text-primary dark:bg-primary/18'
+          )}
         >
           {item.timestamp}
         </button>
-        <div className="min-w-0 space-y-2">
-          <p className="text-foreground text-sm leading-7 font-medium">
+        <div className="min-w-0 space-y-1">
+          <p
+            className={cn(
+              'text-[13px] leading-6',
+              isActive
+                ? 'text-primary font-semibold'
+                : 'text-muted-foreground font-medium'
+            )}
+          >
             {primaryText}
           </p>
           {secondaryText ? (
-            <p className="text-muted-foreground text-sm leading-7">
+            <p className="text-muted-foreground text-[13px] leading-6">
               {secondaryText}
             </p>
           ) : null}

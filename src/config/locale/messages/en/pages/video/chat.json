@@ -51,6 +51,7 @@
   "chatActionsDescription": "Select a Skill, model, or perform copy and clear actions.",
   "copy": "Copy",
   "clear": "Clear",
+  "clearChatConfirm": "Clear all chat messages?",
   "skill": "Skill",
   "skipToContent": "Skip to main content",
   "dismissError": "Dismiss"

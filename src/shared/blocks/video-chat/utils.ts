@@ -358,6 +358,7 @@ export function buildVideoChatCopy(
     chatActionsDescription: t('chatActionsDescription'),
     copy: t('copy'),
     clear: t('clear'),
+    clearChatConfirm: t('clearChatConfirm'),
     skill: t('skill'),
     skipToContent: t('skipToContent'),
     dismissError: t('dismissError'),
