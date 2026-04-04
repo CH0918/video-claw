@@ -35,13 +35,14 @@ export default async function RefreshAITaskPage({
       taskId: task.taskId,
     });
 
-    if (result && result.taskStatus && result.taskInfo) {
+    if (result && result.taskStatus) {
       await updateAITaskById(task.id, {
         status: result.taskStatus,
         taskInfo: result.taskInfo ? JSON.stringify(result.taskInfo) : null,
         taskResult: result.taskResult
           ? JSON.stringify(result.taskResult)
           : null,
+        creditId: task.creditId,
       });
     }
   }

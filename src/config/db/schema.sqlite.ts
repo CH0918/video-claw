@@ -267,6 +267,10 @@ export const order = table(
       table.transactionId,
       table.paymentProvider
     ),
+    uniqueIndex('uidx_order_transaction_provider').on(
+      table.transactionId,
+      table.paymentProvider
+    ),
     // Order orders by creation time for listing
     index('idx_order_created_at').on(table.createdAt),
   ]
@@ -330,6 +334,10 @@ export const subscription = table(
       table.subscriptionId,
       table.paymentProvider
     ),
+    uniqueIndex('uidx_subscription_provider_id').on(
+      table.subscriptionId,
+      table.paymentProvider
+    ),
     // Order subscriptions by creation time for listing
     index('idx_subscription_created_at').on(table.createdAt),
   ]
@@ -363,6 +371,8 @@ export const credit = table(
     deletedAt: integer('deleted_at', { mode: 'timestamp_ms' }),
     consumedDetail: text('consumed_detail'), // consumed detail
     metadata: text('metadata'), // transaction metadata
+    referenceType: text('reference_type'),
+    referenceId: text('reference_id'),
   },
   (table) => [
     // Critical composite index for credit consumption (FIFO queue)
@@ -380,6 +390,13 @@ export const credit = table(
     index('idx_credit_order_no').on(table.orderNo),
     // Query credits by subscription number
     index('idx_credit_subscription_no').on(table.subscriptionNo),
+    index('idx_credit_reference_lookup').on(
+      table.userId,
+      table.transactionType,
+      table.status,
+      table.referenceType,
+      table.referenceId
+    ),
   ]
 );
 

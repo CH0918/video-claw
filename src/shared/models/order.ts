@@ -3,6 +3,7 @@ import { and, count, desc, eq, or } from 'drizzle-orm';
 import { db } from '@/core/db';
 import { credit, order, subscription } from '@/config/db/schema';
 import { PaymentType } from '@/extensions/payment/types';
+import { isUniqueConstraintError } from '@/shared/lib/db-error';
 
 import { NewCredit } from './credit';
 import {
@@ -231,58 +232,6 @@ export async function updateOrderInTransaction({
       credit: null,
     };
 
-    // deal with subscription
-    if (newSubscription) {
-      let existingSubscription: any = null;
-      if (newSubscription.subscriptionId && newSubscription.paymentProvider) {
-        // not create subscription with same subscription id and payment provider
-        const [existingSubscriptionResult] = await tx
-          .select()
-          .from(subscription)
-          .where(
-            and(
-              eq(subscription.subscriptionId, newSubscription.subscriptionId),
-              eq(subscription.paymentProvider, newSubscription.paymentProvider)
-            )
-          );
-
-        existingSubscription = existingSubscriptionResult;
-      }
-
-      if (!existingSubscription) {
-        // create subscription
-        const [subscriptionResult] = await tx
-          .insert(subscription)
-          .values(newSubscription)
-          .returning();
-
-        existingSubscription = subscriptionResult;
-      }
-
-      result.subscription = existingSubscription;
-    }
-
-    // deal with credit
-    if (newCredit) {
-      // not create credit with same order no
-      let [existingCredit] = await tx
-        .select()
-        .from(credit)
-        .where(eq(credit.orderNo, orderNo));
-
-      if (!existingCredit) {
-        // create credit
-        const [creditResult] = await tx
-          .insert(credit)
-          .values(newCredit)
-          .returning();
-
-        existingCredit = creditResult;
-      }
-
-      result.credit = existingCredit;
-    }
-
     // update order with optimistic lock
     // only update if status is not PAID (prevent duplicate processing)
     const [orderResult] = await tx
@@ -306,9 +255,72 @@ export async function updateOrderInTransaction({
     // it means the order was already processed
     if (!orderResult && updateOrder.status === OrderStatus.PAID) {
       console.log(`Order ${orderNo} already paid or not in CREATED status, skipping update`);
+      return result;
     }
 
     result.order = orderResult;
+
+    // deal with subscription
+    if (newSubscription) {
+      let existingSubscription: any = null;
+
+      try {
+        const [subscriptionResult] = await tx
+          .insert(subscription)
+          .values(newSubscription)
+          .returning();
+
+        existingSubscription = subscriptionResult;
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        const [existingSubscriptionResult] = await tx
+          .select()
+          .from(subscription)
+          .where(
+            and(
+              eq(subscription.subscriptionId, newSubscription.subscriptionId),
+              eq(subscription.paymentProvider, newSubscription.paymentProvider)
+            )
+          );
+
+        existingSubscription = existingSubscriptionResult;
+      }
+
+      result.subscription = existingSubscription;
+
+      if (
+        result.order &&
+        existingSubscription?.subscriptionNo &&
+        result.order.subscriptionNo !== existingSubscription.subscriptionNo
+      ) {
+        const [updatedOrder] = await tx
+          .update(order)
+          .set({ subscriptionNo: existingSubscription.subscriptionNo })
+          .where(eq(order.orderNo, orderNo))
+          .returning();
+
+        result.order = updatedOrder;
+      }
+    }
+
+    // deal with credit
+    if (newCredit) {
+      const creditToInsert = result.subscription?.subscriptionNo
+        ? {
+            ...newCredit,
+            subscriptionNo: result.subscription.subscriptionNo,
+          }
+        : newCredit;
+      const [creditResult] = await tx
+        .insert(credit)
+        .values(creditToInsert)
+        .returning();
+
+      result.credit = creditResult;
+    }
 
     return result;
   });
@@ -347,11 +359,29 @@ export async function updateSubscriptionInTransaction({
       credit: null,
     };
 
+    let orderCreated = false;
+
     // deal with order
     if (newOrder) {
       let existingOrder: any = null;
-      if (newOrder.transactionId && newOrder.paymentProvider) {
-        // not create order with same payment transaction id and payment provider
+
+      try {
+        const [orderResult] = await tx
+          .insert(order)
+          .values(newOrder)
+          .returning();
+
+        existingOrder = orderResult;
+        orderCreated = true;
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        if (!newOrder.transactionId || !newOrder.paymentProvider) {
+          throw error;
+        }
+
         const [existingOrderResult] = await tx
           .select()
           .from(order)
@@ -365,42 +395,15 @@ export async function updateSubscriptionInTransaction({
         existingOrder = existingOrderResult;
       }
 
-      if (!existingOrder) {
-        // create order
-        const [orderResult] = await tx
-          .insert(order)
-          .values(newOrder)
-          .returning();
-
-        existingOrder = orderResult;
-      }
-
       result.order = existingOrder;
     }
 
     // deal with credit
-    if (newCredit) {
+    if (newCredit && orderCreated && result.order?.orderNo) {
       let existingCredit: any = null;
-      if (result.order && result.order.orderNo) {
-        // not create credit with same order no
-        const [existingCreditResult] = await tx
-          .select()
-          .from(credit)
-          .where(eq(credit.orderNo, result.order.orderNo));
+      const [creditResult] = await tx.insert(credit).values(newCredit).returning();
 
-        existingCredit = existingCreditResult;
-      }
-
-      if (!existingCredit) {
-        // create credit
-        const [creditResult] = await tx
-          .insert(credit)
-          .values(newCredit)
-          .returning();
-
-        existingCredit = creditResult;
-      }
-
+      existingCredit = creditResult;
       result.credit = existingCredit;
     }
 

@@ -57,6 +57,15 @@ export async function updateVideoAnalysis(id: string, input: UpdateVideoAnalysis
   return result;
 }
 
+export async function deleteVideoAnalysis(id: string) {
+  const [result] = await db()
+    .delete(videoAnalysis)
+    .where(eq(videoAnalysis.id, id))
+    .returning();
+
+  return result;
+}
+
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
 

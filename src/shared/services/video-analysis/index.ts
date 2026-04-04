@@ -8,10 +8,12 @@ import { SUBTITLE_LANGUAGE_CODES } from '@/shared/lib/subtitle-languages';
 import {
   buildVideoAnalysisPayload,
   createVideoAnalysis,
+  deleteVideoAnalysis,
   findVideoAnalysisById,
   findVideoAnalysisBySource,
   updateVideoAnalysis,
 } from '@/shared/models/video_analysis';
+import { isUniqueConstraintError } from '@/shared/lib/db-error';
 import {
   TranscriptSegment,
   VideoAnalysisPayload,
@@ -229,7 +231,33 @@ function normalizeLanguageToLocale(language?: string | null) {
   return null;
 }
 
-export async function startVideoAnalysis(url: string) {
+export type PreparedVideoAnalysisStart =
+  | {
+      action: 'reuse';
+      response:
+        | {
+            analysisId: string;
+            status: 'success';
+            analysis: VideoAnalysisPayload;
+          }
+        | {
+            analysisId: string;
+            status: 'pending' | 'processing';
+            isNew: false;
+          };
+    }
+  | {
+      action: 'start';
+      cleanupMode: 'delete' | 'reset-error';
+      recordId: string;
+      sourceType: 'youtube';
+      sourceId: string;
+      sourceUrl: string;
+    };
+
+export async function prepareVideoAnalysisStart(
+  url: string
+): Promise<PreparedVideoAnalysisStart> {
   const normalizedUrl = normalizeYouTubeUrl(url);
   const sourceId = extractYouTubeVideoId(url);
 
@@ -240,61 +268,166 @@ export async function startVideoAnalysis(url: string) {
   const existing = await findVideoAnalysisBySource('youtube', sourceId);
   if (existing?.status === 'success') {
     return {
-      analysisId: existing.id,
-      status: 'success' as const,
-      analysis: buildVideoAnalysisPayload(existing),
+      action: 'reuse',
+      response: {
+        analysisId: existing.id,
+        status: 'success',
+        analysis: buildVideoAnalysisPayload(existing),
+      },
     };
   }
 
   if (existing?.status === 'pending' || existing?.status === 'processing') {
     return {
-      analysisId: existing.id,
-      status: existing.status as 'pending' | 'processing',
-      isNew: false,
+      action: 'reuse',
+      response: {
+        analysisId: existing.id,
+        status: existing.status as 'pending' | 'processing',
+        isNew: false,
+      },
     };
+  }
+
+  const now = new Date();
+
+  if (existing) {
+    const updated = await updateVideoAnalysis(existing.id, {
+      sourceUrl: normalizedUrl,
+      status: 'pending',
+      provider: '',
+      providerModel: '',
+      providerTaskId: null,
+      providerMeta: null,
+      errorMessage: null,
+      updatedAt: now,
+    });
+
+    return {
+      action: 'start',
+      cleanupMode: 'reset-error',
+      recordId: updated.id,
+      sourceType: 'youtube',
+      sourceId,
+      sourceUrl: normalizedUrl,
+    };
+  }
+
+  try {
+    const record = await createVideoAnalysis({
+      id: crypto.randomUUID(),
+      sourceType: 'youtube',
+      sourceId,
+      sourceUrl: normalizedUrl,
+      status: 'pending',
+      provider: '',
+      providerModel: '',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      action: 'start',
+      cleanupMode: 'delete',
+      recordId: record.id,
+      sourceType: 'youtube',
+      sourceId,
+      sourceUrl: normalizedUrl,
+    };
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const current = await findVideoAnalysisBySource('youtube', sourceId);
+    if (!current) {
+      throw error;
+    }
+
+    if (current.status === 'success') {
+      return {
+        action: 'reuse',
+        response: {
+          analysisId: current.id,
+          status: 'success',
+          analysis: buildVideoAnalysisPayload(current),
+        },
+      };
+    }
+
+    return {
+      action: 'reuse',
+      response: {
+        analysisId: current.id,
+        status:
+          current.status === 'processing' ? 'processing' : 'pending',
+        isNew: false,
+      },
+    };
+  }
+}
+
+export async function cleanupPreparedVideoAnalysisStart(
+  prepared: Extract<PreparedVideoAnalysisStart, { action: 'start' }>,
+  errorMessage: string
+) {
+  if (prepared.cleanupMode === 'delete') {
+    await deleteVideoAnalysis(prepared.recordId);
+    return;
+  }
+
+  await updateVideoAnalysis(prepared.recordId, {
+    status: 'error',
+    provider: '',
+    providerModel: '',
+    providerTaskId: null,
+    providerMeta: null,
+    errorMessage,
+    updatedAt: new Date(),
+  });
+}
+
+export async function markVideoAnalysisAsError(
+  recordId: string,
+  errorMessage: string
+) {
+  await updateVideoAnalysis(recordId, {
+    status: 'error',
+    errorMessage,
+    updatedAt: new Date(),
+  });
+}
+
+export async function startPreparedVideoAnalysis(
+  prepared: Extract<PreparedVideoAnalysisStart, { action: 'start' }>
+) {
+  const record = await findVideoAnalysisById(prepared.recordId);
+  if (!record) {
+    throw new Error('analysis not found');
   }
 
   const providerConfigs = await getVideoAnalysisConfigs();
   const transcriptProvider = getTranscriptProvider(providerConfigs.transcript);
-  const oembed = await fetchYouTubeOEmbed(normalizedUrl);
-  const submitted = await transcriptProvider.submitVideo({ url: normalizedUrl });
+  const oembed = await fetchYouTubeOEmbed(prepared.sourceUrl);
+  const submitted = await transcriptProvider.submitVideo({
+    url: prepared.sourceUrl,
+  });
 
-  const now = new Date();
-
-  const record =
-    existing
-      ? await updateVideoAnalysis(existing.id, {
-          sourceUrl: normalizedUrl,
-          status: 'pending',
-          title: oembed.title || existing.title,
-          author: oembed.author || existing.author,
-          thumbnailUrl: oembed.thumbnailUrl || existing.thumbnailUrl,
-          provider: providerConfigs.transcript.provider,
-          providerModel: providerConfigs.transcript.model,
-          providerTaskId: submitted.taskId,
-          providerMeta: JSON.stringify(submitted.meta || {}),
-          errorMessage: null,
-          updatedAt: now,
-        })
-      : await createVideoAnalysis({
-          id: crypto.randomUUID(),
-          sourceType: 'youtube',
-          sourceId,
-          sourceUrl: normalizedUrl,
-          status: 'pending',
-          title: oembed.title || '',
-          author: oembed.author || '',
-          thumbnailUrl: oembed.thumbnailUrl || '',
-          provider: providerConfigs.transcript.provider,
-          providerModel: providerConfigs.transcript.model,
-          providerTaskId: submitted.taskId,
-          providerMeta: JSON.stringify(submitted.meta || {}),
-          createdAt: now,
-          updatedAt: now,
-        });
+  const updated = await updateVideoAnalysis(record.id, {
+    sourceUrl: prepared.sourceUrl,
+    status: 'pending',
+    title: oembed.title || record.title,
+    author: oembed.author || record.author,
+    thumbnailUrl: oembed.thumbnailUrl || record.thumbnailUrl,
+    provider: providerConfigs.transcript.provider,
+    providerModel: providerConfigs.transcript.model,
+    providerTaskId: submitted.taskId,
+    providerMeta: JSON.stringify(submitted.meta || {}),
+    errorMessage: null,
+    updatedAt: new Date(),
+  });
 
   return {
-    analysisId: record.id,
+    analysisId: updated.id,
     status: 'pending' as const,
     isNew: true,
   };

@@ -5,7 +5,7 @@ import { aiTask, credit } from '@/config/db/schema';
 import { AITaskStatus } from '@/extensions/ai';
 import { appendUserToResult, User } from '@/shared/models/user';
 
-import { consumeCredits, CreditStatus } from './credit';
+import { CreditStatus } from './credit';
 
 export type AITask = typeof aiTask.$inferSelect & {
   user?: User;
@@ -14,38 +14,7 @@ export type NewAITask = typeof aiTask.$inferInsert;
 export type UpdateAITask = Partial<Omit<NewAITask, 'id' | 'createdAt'>>;
 
 export async function createAITask(newAITask: NewAITask) {
-  const result = await db().transaction(async (tx: any) => {
-    // 1. create task record
-    const [taskResult] = await tx.insert(aiTask).values(newAITask).returning();
-
-    if (newAITask.costCredits && newAITask.costCredits > 0) {
-      // 2. consume credits
-      const consumedCredit = await consumeCredits({
-        userId: newAITask.userId,
-        credits: newAITask.costCredits,
-        scene: newAITask.scene,
-        description: `generate ${newAITask.mediaType}`,
-        metadata: JSON.stringify({
-          type: 'ai-task',
-          mediaType: taskResult.mediaType,
-          taskId: taskResult.id,
-        }),
-        tx,
-      });
-
-      // 3. update task record with consumed credit id
-      if (consumedCredit && consumedCredit.id) {
-        taskResult.creditId = consumedCredit.id;
-        await tx
-          .update(aiTask)
-          .set({ creditId: consumedCredit.id })
-          .where(eq(aiTask.id, taskResult.id));
-      }
-    }
-
-    return taskResult;
-  });
-
+  const [result] = await db().insert(aiTask).values(newAITask).returning();
   return result;
 }
 

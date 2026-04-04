@@ -1,8 +1,19 @@
 import { VIDEO_ANALYSIS_CREDIT_COST } from '@/shared/lib/ai-models';
 import { respData, respErr } from '@/shared/lib/resp';
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import {
+  buildVideoAnalysisSourceReference,
+  consumeCredits,
+  CreditReferenceType,
+  isInsufficientCreditsError,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
-import { startVideoAnalysis } from '@/shared/services/video-analysis';
+import {
+  cleanupPreparedVideoAnalysisStart,
+  markVideoAnalysisAsError,
+  prepareVideoAnalysisStart,
+  startPreparedVideoAnalysis,
+} from '@/shared/services/video-analysis';
 
 export async function POST(req: Request) {
   try {
@@ -16,29 +27,58 @@ export async function POST(req: Request) {
       return respErr('url is required');
     }
 
-    const result = await startVideoAnalysis(String(url));
+    const prepared = await prepareVideoAnalysisStart(String(url));
+    if (prepared.action === 'reuse') {
+      return respData(prepared.response);
+    }
 
-    if (result.status === 'success' || !result.isNew) {
+    let consumedCredit;
+    try {
+      consumedCredit = await consumeCredits({
+        userId: user.id,
+        credits: VIDEO_ANALYSIS_CREDIT_COST,
+        scene: 'video-analysis',
+        description: 'video analysis',
+        metadata: JSON.stringify({
+          type: 'video-analysis',
+          sourceType: prepared.sourceType,
+          sourceId: prepared.sourceId,
+        }),
+        referenceType: CreditReferenceType.VIDEO_ANALYSIS_SOURCE,
+        referenceId: buildVideoAnalysisSourceReference(
+          prepared.sourceType,
+          prepared.sourceId
+        ),
+      });
+    } catch (error) {
+      await cleanupPreparedVideoAnalysisStart(
+        prepared,
+        isInsufficientCreditsError(error)
+          ? 'Insufficient credits'
+          : 'Video analysis start aborted'
+      );
+
+      if (isInsufficientCreditsError(error)) {
+        return respErr('insufficient credits');
+      }
+
+      throw error;
+    }
+
+    try {
+      const result = await startPreparedVideoAnalysis(prepared);
       return respData(result);
+    } catch (error: any) {
+      if (consumedCredit?.id) {
+        await refundCredits(consumedCredit.id);
+      }
+      await markVideoAnalysisAsError(
+        prepared.recordId,
+        error?.message || 'video analysis submit failed'
+      );
+
+      throw error;
     }
-
-    const remainingCredits = await getRemainingCredits(user.id);
-    if (remainingCredits < VIDEO_ANALYSIS_CREDIT_COST) {
-      return respErr('insufficient credits');
-    }
-
-    await consumeCredits({
-      userId: user.id,
-      credits: VIDEO_ANALYSIS_CREDIT_COST,
-      scene: 'video-analysis',
-      description: 'video analysis',
-      metadata: JSON.stringify({
-        type: 'video-analysis',
-        analysisId: result.analysisId,
-      }),
-    });
-
-    return respData(result);
   } catch (e: any) {
     console.log('video analysis submit failed:', e);
     return respErr(e.message || 'video analysis submit failed');

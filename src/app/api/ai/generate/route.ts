@@ -1,9 +1,18 @@
 import { envConfigs } from '@/config';
-import { AIMediaType } from '@/extensions/ai';
+import { AIMediaType, AITaskStatus } from '@/extensions/ai';
 import { getUuid } from '@/shared/lib/hash';
 import { respData, respErr } from '@/shared/lib/resp';
-import { createAITask, NewAITask } from '@/shared/models/ai_task';
-import { getRemainingCredits } from '@/shared/models/credit';
+import {
+  createAITask,
+  NewAITask,
+  updateAITaskById,
+} from '@/shared/models/ai_task';
+import {
+  consumeCredits,
+  CreditReferenceType,
+  isInsufficientCreditsError,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 import { getAIService } from '@/shared/services/ai';
 
@@ -70,13 +79,8 @@ export async function POST(request: Request) {
       throw new Error('invalid mediaType');
     }
 
-    // check credits
-    const remainingCredits = await getRemainingCredits(user.id);
-    if (remainingCredits < costCredits) {
-      throw new Error('insufficient credits');
-    }
-
     const callbackUrl = `${envConfigs.app_url}/api/ai/notify/${provider}`;
+    const localTaskId = getUuid();
 
     const params: any = {
       mediaType,
@@ -86,17 +90,31 @@ export async function POST(request: Request) {
       options,
     };
 
-    // generate content
-    const result = await aiProvider.generate({ params });
-    if (!result?.taskId) {
-      throw new Error(
-        `ai generate failed, mediaType: ${mediaType}, provider: ${provider}, model: ${model}`
-      );
+    let consumedCredit;
+    try {
+      consumedCredit = await consumeCredits({
+        userId: user.id,
+        credits: costCredits,
+        scene,
+        description: `generate ${mediaType}`,
+        metadata: JSON.stringify({
+          type: 'ai-task',
+          mediaType,
+          taskId: localTaskId,
+        }),
+        referenceType: CreditReferenceType.AI_TASK,
+        referenceId: localTaskId,
+      });
+    } catch (error) {
+      if (isInsufficientCreditsError(error)) {
+        throw new Error('insufficient credits');
+      }
+
+      throw error;
     }
 
-    // create ai task
-    const newAITask: NewAITask = {
-      id: getUuid(),
+    const draftTask: NewAITask = {
+      id: localTaskId,
       userId: user.id,
       mediaType,
       provider,
@@ -104,15 +122,49 @@ export async function POST(request: Request) {
       prompt,
       scene,
       options: options ? JSON.stringify(options) : null,
-      status: result.taskStatus,
+      status: AITaskStatus.PENDING,
       costCredits,
-      taskId: result.taskId,
-      taskInfo: result.taskInfo ? JSON.stringify(result.taskInfo) : null,
-      taskResult: result.taskResult ? JSON.stringify(result.taskResult) : null,
+      taskId: null,
+      taskInfo: null,
+      taskResult: null,
+      creditId: consumedCredit.id,
     };
-    await createAITask(newAITask);
 
-    return respData(newAITask);
+    try {
+      await createAITask(draftTask);
+    } catch (error) {
+      await refundCredits(consumedCredit.id);
+      throw error;
+    }
+
+    try {
+      const result = await aiProvider.generate({ params });
+      if (!result?.taskId) {
+        throw new Error(
+          `ai generate failed, mediaType: ${mediaType}, provider: ${provider}, model: ${model}`
+        );
+      }
+
+      const updatedTask = await updateAITaskById(localTaskId, {
+        status: result.taskStatus,
+        taskId: result.taskId,
+        taskInfo: result.taskInfo ? JSON.stringify(result.taskInfo) : null,
+        taskResult: result.taskResult ? JSON.stringify(result.taskResult) : null,
+        creditId: consumedCredit.id,
+      });
+
+      return respData(updatedTask || { ...draftTask, ...result });
+    } catch (error: any) {
+      await updateAITaskById(localTaskId, {
+        status: AITaskStatus.FAILED,
+        taskInfo: JSON.stringify({
+          errorMessage: error?.message || 'generate failed',
+        }),
+        creditId: consumedCredit.id,
+      });
+
+      throw error;
+    }
   } catch (e: any) {
     console.log('generate failed', e);
     return respErr(e.message);

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, isNull, like, or, sql, sum } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, isNull, or, sql, sum } from 'drizzle-orm';
 
 import { db } from '@/core/db';
 import { credit } from '@/config/db/schema';
@@ -32,6 +32,25 @@ export enum CreditTransactionScene {
   RENEWAL = 'renewal', // renewal
   GIFT = 'gift', // gift
   REWARD = 'reward', // reward
+}
+
+export enum CreditReferenceType {
+  VIDEO_ANALYSIS_SOURCE = 'video-analysis-source',
+  VIDEO_CHAT = 'video-chat',
+  AI_TASK = 'ai-task',
+}
+
+export function isInsufficientCreditsError(error: unknown) {
+  return String((error as Error | undefined)?.message || '')
+    .toLowerCase()
+    .includes('insufficient credits');
+}
+
+export function buildVideoAnalysisSourceReference(
+  sourceType: string,
+  sourceId: string
+) {
+  return `${sourceType}:${sourceId}`;
 }
 
 // Calculate credit expiration time based on order and subscription info
@@ -149,6 +168,8 @@ export async function consumeCredits({
   scene,
   description,
   metadata,
+  referenceType,
+  referenceId,
   tx,
 }: {
   userId: string;
@@ -156,8 +177,14 @@ export async function consumeCredits({
   scene?: string;
   description?: string;
   metadata?: string;
+  referenceType?: string;
+  referenceId?: string;
   tx?: any;
 }) {
+  if (credits <= 0) {
+    throw new Error(`credits must be greater than 0, got ${credits}`);
+  }
+
   const currentTime = new Date();
 
   // consume credits
@@ -269,6 +296,12 @@ export async function consumeCredits({
       }
     }
 
+    if (remainingToConsume > 0) {
+      throw new Error(
+        `Insufficient credits after lock, ${credits - remainingToConsume} < ${credits}`
+      );
+    }
+
     // 3. create consumed credit
     const consumedCredit: NewCredit = {
       id: getUuid(),
@@ -281,6 +314,8 @@ export async function consumeCredits({
       credits: -credits,
       consumedDetail: JSON.stringify(consumedItems),
       metadata: metadata,
+      referenceType: referenceType,
+      referenceId: referenceId,
     };
     await tx.insert(credit).values(consumedCredit);
 
@@ -329,7 +364,11 @@ export async function refundCredits(creditId: string) {
       .from(credit)
       .where(eq(credit.id, creditId));
 
-    if (!consumedCredit || consumedCredit.status !== CreditStatus.ACTIVE) {
+    if (
+      !consumedCredit ||
+      consumedCredit.status !== CreditStatus.ACTIVE ||
+      consumedCredit.transactionType !== CreditTransactionType.CONSUME
+    ) {
       return false;
     }
 
@@ -357,16 +396,25 @@ export async function refundCredits(creditId: string) {
   });
 }
 
-// find an active consume credit by metadata pattern (LIKE search)
-export async function findConsumeCreditByMetadata(metadataPattern: string) {
+export async function findActiveConsumeCreditByReference({
+  userId,
+  referenceType,
+  referenceId,
+}: {
+  userId: string;
+  referenceType: string;
+  referenceId: string;
+}) {
   const [result] = await db()
     .select()
     .from(credit)
     .where(
       and(
+        eq(credit.userId, userId),
         eq(credit.transactionType, CreditTransactionType.CONSUME),
         eq(credit.status, CreditStatus.ACTIVE),
-        like(credit.metadata, `%${metadataPattern}%`)
+        eq(credit.referenceType, referenceType),
+        eq(credit.referenceId, referenceId)
       )
     )
     .limit(1);
