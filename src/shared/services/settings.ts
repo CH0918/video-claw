@@ -777,6 +777,15 @@ export async function getSettings() {
       tab: 'storage',
     },
     {
+      name: 'proxy_file_allowed_hosts',
+      title: 'Proxy File Allowed Hosts',
+      type: 'textarea',
+      placeholder: 'cdn.example.com, *.assets.example.com',
+      tip: 'Comma or newline separated HTTPS hostnames allowed by /api/proxy/file. Leave empty to fail closed.',
+      group: 'r2',
+      tab: 'storage',
+    },
+    {
       name: 'openrouter_api_key',
       title: 'OpenRouter API Key',
       type: 'password',

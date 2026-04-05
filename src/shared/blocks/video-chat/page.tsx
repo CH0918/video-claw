@@ -22,6 +22,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
+import { authClient, useSession } from '@/core/auth/client';
 import { Button } from '@/shared/components/ui/button';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList } from '@/shared/components/ui/tabs';
@@ -31,6 +32,7 @@ import { VIDEO_CHAT_DEFAULT_MODEL } from '@/shared/lib/ai-models';
 import { SUBTITLE_LANGUAGES } from '@/shared/lib/subtitle-languages';
 import { cn } from '@/shared/lib/utils';
 import { buildYouTubeEmbedUrl } from '@/shared/lib/video-analysis/youtube';
+import type { User } from '@/shared/models/user';
 import { VideoAnalysisPayload } from '@/shared/types/video-analysis';
 
 import { CaptionsPanel } from './captions-panel';
@@ -59,10 +61,26 @@ import {
 import { VideoPlayerCard } from './video-player-card';
 import { WorkspaceTabTrigger } from './workspace-tab-trigger';
 
+function extractSessionUser(data: any): User | null {
+  const sessionUser = data?.user ?? data?.data?.user ?? null;
+  return sessionUser && typeof sessionUser === 'object'
+    ? (sessionUser as User)
+    : null;
+}
+
 export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
   const t = useTranslations('pages.video.chat');
   const content = useMemo(() => buildVideoChatCopy(t), [t]);
-  const { user, fetchUserCredits } = useAppContext();
+  const { data: session, isPending } = useSession();
+  const sessionUser = extractSessionUser(session);
+  const {
+    user,
+    setUser,
+    isCheckSign,
+    setIsShowSignModal,
+    fetchUserCredits,
+    fetchUserInfo,
+  } = useAppContext();
   const isMobile = useIsMobile();
   const router = useRouter();
   const mobileIframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -189,6 +207,47 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     },
     []
   );
+
+  // Only prompt for sign-in after both the session hook and a fallback
+  // getSession check confirm there is no authenticated user.
+  useEffect(() => {
+    if (isPending || isCheckSign) return;
+    if (user || sessionUser) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const result: any = await authClient.getSession();
+        if (cancelled) return;
+
+        const freshUser = extractSessionUser(result?.data ?? result);
+        if (freshUser?.id) {
+          setUser(freshUser);
+          void fetchUserInfo();
+          return;
+        }
+      } catch {
+        // Fall through to showing the sign-in modal.
+      }
+
+      if (!cancelled) {
+        setIsShowSignModal(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    fetchUserInfo,
+    isCheckSign,
+    isPending,
+    sessionUser,
+    setIsShowSignModal,
+    setUser,
+    user,
+  ]);
 
   useEffect(() => {
     if (!initialUrl || hasBootstrappedRef.current) return;
@@ -600,8 +659,12 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
         [cacheKey]: result.translations,
       }));
       void fetchUserCredits();
-    } catch {
-      setErrorMessage(content.translationFailed);
+    } catch (error: any) {
+      setErrorMessage(
+        error?.message === 'insufficient credits'
+          ? content.insufficientCredits
+          : content.translationFailed
+      );
     } finally {
       setIsSubtitleTranslating(false);
     }
@@ -1044,14 +1107,14 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
       </main>
 
       {errorMessage ? (
-        <div className="fixed right-4 bottom-4 z-50" role="alert">
-          <div className="border-border bg-card flex max-w-sm items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg">
+        <div className="fixed inset-x-0 top-4 z-50 flex justify-center" role="alert">
+          <div className="flex max-w-lg items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg dark:border-red-800 dark:bg-red-950 dark:text-red-300">
             <span className="flex-1">{errorMessage}</span>
             <button
               type="button"
               aria-label={content.dismissError}
               onClick={() => setErrorMessage('')}
-              className="text-muted-foreground hover:text-foreground shrink-0 text-xs font-medium"
+              className="shrink-0 text-xs font-medium text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
             >
               {content.dismissError}
             </button>

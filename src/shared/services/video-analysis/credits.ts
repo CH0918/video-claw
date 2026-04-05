@@ -1,4 +1,8 @@
-import { getSupportedAIModel, type SupportedAIModelId } from '@/shared/lib/ai-models';
+import {
+  getSupportedAIModel,
+  type SupportedAIModelId,
+  VIDEO_SUBTITLE_TRANSLATION_CREDIT_COST,
+} from '@/shared/lib/ai-models';
 import { md5 } from '@/shared/lib/hash';
 import {
   consumeCredits,
@@ -55,6 +59,51 @@ export async function consumeVideoChatCredits({
       analysisId,
       model,
       messages,
+    }),
+  });
+
+  return { creditCost, consumedCredit };
+}
+
+export function buildVideoSubtitleTranslationReferenceId({
+  analysisId,
+  targetLanguage,
+}: {
+  analysisId: string;
+  targetLanguage: string;
+}) {
+  return `${analysisId}:${targetLanguage}`;
+}
+
+export async function consumeVideoSubtitleTranslationCredits({
+  userId,
+  analysisId,
+  targetLanguage,
+}: {
+  userId: string;
+  analysisId: string;
+  targetLanguage: string;
+}) {
+  const creditCost = VIDEO_SUBTITLE_TRANSLATION_CREDIT_COST;
+
+  if (creditCost <= 0) {
+    return { creditCost: 0, consumedCredit: null };
+  }
+
+  const consumedCredit = await consumeCredits({
+    userId,
+    credits: creditCost,
+    scene: 'video-translate',
+    description: `video subtitle translation (${targetLanguage})`,
+    metadata: JSON.stringify({
+      type: 'video-subtitle-translation',
+      analysisId,
+      targetLanguage,
+    }),
+    referenceType: CreditReferenceType.VIDEO_SUBTITLE_TRANSLATION,
+    referenceId: buildVideoSubtitleTranslationReferenceId({
+      analysisId,
+      targetLanguage,
     }),
   });
 

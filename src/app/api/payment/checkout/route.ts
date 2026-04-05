@@ -297,11 +297,12 @@ export async function POST(req: Request) {
         checkoutInfo: JSON.stringify(checkoutOrder),
       });
 
-      return respErr('checkout failed: ' + e.message);
+      console.log('checkout create payment failed:', e);
+      return respErr('checkout failed');
     }
   } catch (e: any) {
     console.log('checkout failed:', e);
-    return respErr('checkout failed: ' + e.message);
+    return respErr('checkout failed');
   }
 }
 

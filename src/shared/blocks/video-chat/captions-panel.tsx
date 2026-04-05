@@ -263,7 +263,7 @@ export function CaptionsPanel({
         </ScrollArea>
 
         {isSubtitleTranslating ? (
-          <div className="absolute inset-0 z-10 space-y-0 overflow-hidden px-2.5 py-2">
+          <div className="bg-card/80 absolute inset-0 z-10 space-y-0 overflow-hidden px-2.5 py-2 backdrop-blur-sm">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-start gap-3 py-1.5">
                 <Skeleton className="mt-0.5 h-5 w-14 shrink-0 rounded-lg" />

@@ -39,6 +39,7 @@ export const SUPPORTED_AI_MODELS: SupportedAIModel[] = [
 ];
 
 export const VIDEO_ANALYSIS_CREDIT_COST = 2;
+export const VIDEO_SUBTITLE_TRANSLATION_CREDIT_COST = 2;
 
 export const GENERAL_CHAT_DEFAULT_MODEL: SupportedAIModelId =
   'gemini-2.5-flash';

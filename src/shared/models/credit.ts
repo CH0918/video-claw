@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, gt, isNull, or, sql, sum } from 'drizzle-orm
 import { db } from '@/core/db';
 import { credit } from '@/config/db/schema';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
+import { safeJsonParse } from '@/shared/lib/api-security';
 
 import { getAllConfigs } from './config';
 import type { User } from './user';
@@ -37,6 +38,7 @@ export enum CreditTransactionScene {
 export enum CreditReferenceType {
   VIDEO_ANALYSIS_SOURCE = 'video-analysis-source',
   VIDEO_CHAT = 'video-chat',
+  VIDEO_SUBTITLE_TRANSLATION = 'video-subtitle-translation',
   AI_TASK = 'ai-task',
 }
 
@@ -251,7 +253,7 @@ export async function consumeCredits({
           asc(credit.expiresAt)
         )
         .limit(batchSize) // batch size
-        .offset((batchNo - 1) * batchSize) // offset
+        .offset(0) // exhausted rows drop out, so always re-read from the head
         .for('update'); // lock for update
 
       // no more credits
@@ -286,13 +288,14 @@ export async function consumeCredits({
           batchNo: batchNo,
         });
 
-        batchNo += 1;
         remainingToConsume -= toConsume;
+      }
 
-        // if too many batches, throw error
-        if (batchNo > maxBatchNo) {
-          throw new Error(`Too many batches: ${batchNo} > ${maxBatchNo}`);
-        }
+      batchNo += 1;
+
+      // if too many batches, throw error
+      if (remainingToConsume > 0 && batchNo > maxBatchNo) {
+        throw new Error(`Too many batches: ${batchNo} > ${maxBatchNo}`);
       }
     }
 
@@ -372,7 +375,10 @@ export async function refundCredits(creditId: string) {
       return false;
     }
 
-    const consumedItems = JSON.parse(consumedCredit.consumedDetail || '[]');
+    const consumedItems = safeJsonParse<any[]>(
+      consumedCredit.consumedDetail,
+      []
+    );
 
     await Promise.all(
       consumedItems.map((item: any) => {

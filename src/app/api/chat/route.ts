@@ -39,33 +39,35 @@ export async function POST(req: Request) {
     } = await req.json();
 
     if (!chatId) {
-      throw new Error('invalid params');
+      return new Response('invalid params', { status: 400 });
     }
 
     if (!message || !message.parts || message.parts.length === 0) {
-      throw new Error('invalid message');
+      return new Response('invalid message', { status: 400 });
     }
 
     // check user sign
     const user = await getUserInfo();
     if (!user) {
-      throw new Error('no auth, please sign in');
+      return new Response('no auth, please sign in', { status: 401 });
     }
 
     // check chat
     const chat = await findChatById(chatId);
     if (!chat) {
-      throw new Error('chat not found');
+      return new Response('chat not found', { status: 404 });
     }
 
     if (chat.userId !== user?.id) {
-      throw new Error('no permission to access this chat');
+      return new Response('no permission to access this chat', {
+        status: 403,
+      });
     }
 
     const configs = await getAllConfigs();
     const evolinkApiKey = configs.evolink_api_key;
     if (!evolinkApiKey) {
-      throw new Error('evolink_api_key is not set');
+      return new Response('chat is unavailable', { status: 503 });
     }
 
     const model = requireSupportedAIModel(
@@ -156,6 +158,6 @@ export async function POST(req: Request) {
     });
   } catch (e: any) {
     console.log('chat failed:', e);
-    return new Response(e.message, { status: 500 });
+    return new Response('chat failed', { status: 500 });
   }
 }

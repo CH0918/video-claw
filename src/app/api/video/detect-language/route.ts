@@ -13,6 +13,6 @@ export async function POST(req: Request) {
     return respData({ language });
   } catch (e: any) {
     console.log('detect language failed:', e);
-    return respErr(e.message || 'detect language failed');
+    return respErr('detect language failed');
   }
 }

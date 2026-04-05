@@ -68,8 +68,10 @@ export function VideoChatHeaderMenu() {
   const {
     user,
     setUser,
+    fetchConfigs,
     fetchUserCredits,
     fetchUserInfo,
+    setIsCheckSign,
     setIsShowSignModal,
   } = useAppContext();
 
@@ -87,6 +89,14 @@ export function VideoChatHeaderMenu() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    fetchConfigs();
+  }, [fetchConfigs]);
+
+  useEffect(() => {
+    setIsCheckSign(isPending);
+  }, [isPending, setIsCheckSign]);
 
   useEffect(() => {
     const currentUserId = user?.id;

@@ -22,30 +22,30 @@ export async function POST(request: Request) {
       await request.json();
 
     if (!provider || !mediaType || !model) {
-      throw new Error('invalid params');
+      return respErr('invalid params');
     }
 
     if (!prompt && !options) {
-      throw new Error('prompt or options is required');
+      return respErr('prompt or options is required');
     }
 
     const aiService = await getAIService();
 
     // check generate type
     if (!aiService.getMediaTypes().includes(mediaType)) {
-      throw new Error('invalid mediaType');
+      return respErr('invalid mediaType');
     }
 
     // check ai provider
     const aiProvider = aiService.getProvider(provider);
     if (!aiProvider) {
-      throw new Error('invalid provider');
+      return respErr('invalid provider');
     }
 
     // get current user
     const user = await getUserInfo();
     if (!user) {
-      throw new Error('no auth, please sign in');
+      return respErr('no auth, please sign in');
     }
 
     // todo: get cost credits from settings
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       } else if (scene === 'text-to-image') {
         costCredits = 2;
       } else {
-        throw new Error('invalid scene');
+        return respErr('invalid scene');
       }
     } else if (mediaType === AIMediaType.VIDEO) {
       // generate video
@@ -69,14 +69,14 @@ export async function POST(request: Request) {
       } else if (scene === 'video-to-video') {
         costCredits = 10;
       } else {
-        throw new Error('invalid scene');
+        return respErr('invalid scene');
       }
     } else if (mediaType === AIMediaType.MUSIC) {
       // generate music
       costCredits = 10;
       scene = 'text-to-music';
     } else {
-      throw new Error('invalid mediaType');
+      return respErr('invalid mediaType');
     }
 
     const callbackUrl = `${envConfigs.app_url}/api/ai/notify/${provider}`;
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
       });
     } catch (error) {
       if (isInsufficientCreditsError(error)) {
-        throw new Error('insufficient credits');
+        return respErr('insufficient credits');
       }
 
       throw error;
@@ -167,6 +167,6 @@ export async function POST(request: Request) {
     }
   } catch (e: any) {
     console.log('generate failed', e);
-    return respErr(e.message);
+    return respErr('generate failed');
   }
 }

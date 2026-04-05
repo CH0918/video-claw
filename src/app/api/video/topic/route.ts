@@ -18,6 +18,6 @@ export async function POST(req: Request) {
     return respData({ topics });
   } catch (e: any) {
     console.log('video topic failed:', e);
-    return respErr(e.message || 'video topic failed');
+    return respErr('video topic failed');
   }
 }

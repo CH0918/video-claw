@@ -37,6 +37,6 @@ export async function POST(req: Request) {
     });
   } catch (e: any) {
     console.log('get chat list failed:', e);
-    return respErr(`get chat list failed: ${e.message}`);
+    return respErr('get chat list failed');
   }
 }

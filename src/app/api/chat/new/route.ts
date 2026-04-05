@@ -12,12 +12,12 @@ export async function POST(req: Request) {
   try {
     const { message, body } = await req.json();
     if (!message || !message.text) {
-      throw new Error('message is required');
+      return respErr('message is required');
     }
 
     const user = await getUserInfo();
     if (!user) {
-      throw new Error('no auth, please sign in');
+      return respErr('no auth, please sign in');
     }
 
     // todo: check user credits
@@ -57,6 +57,6 @@ export async function POST(req: Request) {
     return respData(chat);
   } catch (e: any) {
     console.log('new chat failed:', e);
-    return respErr(`new chat failed: ${e.message}`);
+    return respErr('new chat failed');
   }
 }

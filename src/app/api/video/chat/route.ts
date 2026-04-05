@@ -2,8 +2,12 @@ import {
   VIDEO_CHAT_DEFAULT_MODEL,
   requireSupportedAIModel,
 } from '@/shared/lib/ai-models';
+import { validateVideoChatMessages } from '@/shared/lib/api-security';
 import { respData, respErr } from '@/shared/lib/resp';
-import { isInsufficientCreditsError } from '@/shared/models/credit';
+import {
+  isInsufficientCreditsError,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 import { answerVideoQuestion } from '@/shared/services/video-analysis';
 import { consumeVideoChatCredits } from '@/shared/services/video-analysis/credits';
@@ -16,8 +20,12 @@ export async function POST(req: Request) {
     }
 
     const { analysisId, messages, model: requestedModel } = await req.json();
-    if (!analysisId || !Array.isArray(messages) || messages.length === 0) {
-      return respErr('analysisId and messages are required');
+    const validationError = validateVideoChatMessages(messages);
+    if (!analysisId || validationError) {
+      return Response.json(
+        { code: -1, message: validationError || 'analysisId is required' },
+        { status: 400 }
+      );
     }
 
     const model = requireSupportedAIModel(
@@ -25,13 +33,15 @@ export async function POST(req: Request) {
       VIDEO_CHAT_DEFAULT_MODEL
     );
 
+    let consumedCreditId: string | null = null;
     try {
-      await consumeVideoChatCredits({
+      const { consumedCredit } = await consumeVideoChatCredits({
         userId: user.id,
         analysisId: String(analysisId),
         messages,
         model,
       });
+      consumedCreditId = consumedCredit?.id || null;
     } catch (error) {
       if (isInsufficientCreditsError(error)) {
         return Response.json(
@@ -46,10 +56,17 @@ export async function POST(req: Request) {
       throw error;
     }
 
-    const answer = await answerVideoQuestion(String(analysisId), messages, model);
-    return respData(answer);
+    try {
+      const answer = await answerVideoQuestion(String(analysisId), messages, model);
+      return respData(answer);
+    } catch (error) {
+      if (consumedCreditId) {
+        await refundCredits(consumedCreditId);
+      }
+      throw error;
+    }
   } catch (e: any) {
     console.log('video chat failed:', e);
-    return respErr(e.message || 'video chat failed');
+    return respErr('video chat failed');
   }
 }

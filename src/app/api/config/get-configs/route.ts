@@ -8,6 +8,6 @@ export async function POST(req: Request) {
     return respData(configs);
   } catch (e: any) {
     console.log('get configs failed', e);
-    return respErr(e.message);
+    return respErr('get configs failed');
   }
 }

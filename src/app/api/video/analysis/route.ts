@@ -81,6 +81,6 @@ export async function POST(req: Request) {
     }
   } catch (e: any) {
     console.log('video analysis submit failed:', e);
-    return respErr(e.message || 'video analysis submit failed');
+    return respErr('video analysis submit failed');
   }
 }

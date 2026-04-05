@@ -1,6 +1,21 @@
+import { enforceMinIntervalRateLimit } from '@/shared/lib/rate-limit';
 import { md5 } from '@/shared/lib/hash';
 import { respData, respErr } from '@/shared/lib/resp';
+import { getUserInfo } from '@/shared/models/user';
 import { getStorageService } from '@/shared/services/storage';
+
+const MAX_UPLOAD_FILES = 4;
+const MAX_UPLOAD_FILE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
 
 const extFromMime = (mimeType: string) => {
   const map: Record<string, string> = {
@@ -9,7 +24,6 @@ const extFromMime = (mimeType: string) => {
     'image/png': 'png',
     'image/webp': 'webp',
     'image/gif': 'gif',
-    'image/svg+xml': 'svg',
     'image/avif': 'avif',
     'image/heic': 'heic',
     'image/heif': 'heif',
@@ -19,32 +33,63 @@ const extFromMime = (mimeType: string) => {
 
 export async function POST(req: Request) {
   try {
+    const user = await getUserInfo();
+    if (!user) {
+      return Response.json(
+        { code: -1, message: 'no auth, please sign in' },
+        { status: 401 }
+      );
+    }
+
+    const limited = enforceMinIntervalRateLimit(req, {
+      intervalMs: 3000,
+      keyPrefix: 'upload-image',
+    });
+    if (limited) {
+      return limited;
+    }
+
     const formData = await req.formData();
     const files = formData.getAll('files') as File[];
 
-    console.log('[API] Received files:', files.length);
-    files.forEach((file, i) => {
-      console.log(`[API] File ${i}:`, {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
-    });
-
     if (!files || files.length === 0) {
       return respErr('No files provided');
+    }
+
+    if (files.length > MAX_UPLOAD_FILES) {
+      return Response.json(
+        {
+          code: -1,
+          message: `Too many files. Maximum ${MAX_UPLOAD_FILES} files per request.`,
+        },
+        { status: 400 }
+      );
     }
 
     const storageService = await getStorageService();
     const uploadResults = [];
 
     for (const file of files) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        return respErr(`File ${file.name} is not an image`);
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
+        return Response.json(
+          {
+            code: -1,
+            message: `File ${file.name} has an unsupported image type`,
+          },
+          { status: 415 }
+        );
       }
 
-      // Convert file to buffer
+      if (file.size <= 0 || file.size > MAX_UPLOAD_FILE_BYTES) {
+        return Response.json(
+          {
+            code: -1,
+            message: `File ${file.name} exceeds the ${Math.floor(MAX_UPLOAD_FILE_BYTES / (1024 * 1024))}MB limit`,
+          },
+          { status: 413 }
+        );
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const body = new Uint8Array(arrayBuffer);
 
@@ -78,10 +123,11 @@ export async function POST(req: Request) {
 
       if (!result.success) {
         console.error('[API] Upload failed:', result.error);
-        return respErr(result.error || 'Upload failed');
+        return Response.json(
+          { code: -1, message: 'Upload failed' },
+          { status: 502 }
+        );
       }
-
-      console.log('[API] Upload success:', result.url);
 
       uploadResults.push({
         url: result.url,
@@ -90,11 +136,6 @@ export async function POST(req: Request) {
         deduped: false,
       });
     }
-
-    console.log(
-      '[API] All uploads complete. Returning URLs:',
-      uploadResults.map((r) => r.url)
-    );
 
     return respData({
       urls: uploadResults.map((r) => r.url),
