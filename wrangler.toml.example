@@ -23,7 +23,7 @@ enabled = true
 
 [vars]
 # app
-NEXT_PUBLIC_APP_URL = "http://localhost:3000"
+NEXT_PUBLIC_APP_URL = "http://localhost:3008"
 NEXT_PUBLIC_APP_NAME = "Your App Name"
 
 # theme

@@ -97,7 +97,7 @@ function withMysqlCompat<T extends object>(dbInstance: T): T {
 
       // Only wrap mutation builders; everything else is passed through.
       if (prop !== 'insert' && prop !== 'update' && prop !== 'delete') {
-        return value.bind(target);
+        return (...args: any[]) => value.apply(target, args);
       }
 
       return (...args: any[]) => {
@@ -164,7 +164,7 @@ function withSqliteCompat<T extends object>(dbInstance: T): T {
         return (...args: any[]) => wrapQuery(value.apply(target, args));
       }
 
-      return value.bind(target);
+      return (...args: any[]) => value.apply(target, args);
     },
   }) as any as T;
 
@@ -186,7 +186,9 @@ function withSqliteCompat<T extends object>(dbInstance: T): T {
  */
 export function db(): any {
   if (envConfigs.database_provider === 'd1') {
-    return withSqliteCompat(getD1Db() as any);
+    // D1's batch/raw query objects rely on Drizzle internals that break when wrapped
+    // with the generic SQLite proxy. Return the native D1 database instance directly.
+    return getD1Db() as any;
   }
 
   if (['sqlite', 'turso'].includes(envConfigs.database_provider)) {

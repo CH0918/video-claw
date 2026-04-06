@@ -1,11 +1,12 @@
 import { and, count, desc, eq, sql } from 'drizzle-orm';
 
+import { envConfigs } from '@/config';
 import { db } from '@/core/db';
 import { aiTask, credit } from '@/config/db/schema';
 import { AITaskStatus } from '@/extensions/ai';
 import { appendUserToResult, User } from '@/shared/models/user';
 
-import { CreditStatus } from './credit';
+import { CreditStatus, refundCredits } from './credit';
 
 export type AITask = typeof aiTask.$inferSelect & {
   user?: User;
@@ -24,6 +25,66 @@ export async function findAITaskById(id: string) {
 }
 
 export async function updateAITaskById(id: string, updateAITask: UpdateAITask) {
+  if (envConfigs.database_provider === 'd1') {
+    const currentTask = await findAITaskById(id);
+    if (!currentTask) {
+      return undefined;
+    }
+
+    const currentStatus = currentTask.status as AITaskStatus;
+    const nextStatus = updateAITask.status as AITaskStatus | undefined;
+    const nextCreditId = currentTask.creditId ?? updateAITask.creditId ?? null;
+
+    const safeUpdate: UpdateAITask = {
+      ...updateAITask,
+      creditId: nextCreditId,
+    };
+
+    if (
+      nextStatus === AITaskStatus.FAILED &&
+      [AITaskStatus.SUCCESS, AITaskStatus.CANCELED].includes(currentStatus)
+    ) {
+      return currentTask;
+    }
+
+    if (
+      nextStatus &&
+      currentStatus === AITaskStatus.SUCCESS &&
+      nextStatus !== AITaskStatus.SUCCESS
+    ) {
+      return currentTask;
+    }
+
+    if (
+      nextStatus &&
+      currentStatus === AITaskStatus.CANCELED &&
+      nextStatus !== AITaskStatus.CANCELED
+    ) {
+      return currentTask;
+    }
+
+    const [result] = await db()
+      .update(aiTask)
+      .set(safeUpdate)
+      .where(and(eq(aiTask.id, id), eq(aiTask.status, currentStatus)))
+      .returning();
+
+    const finalTask = result ?? (await findAITaskById(id));
+    if (!finalTask) {
+      return undefined;
+    }
+
+    if (
+      nextStatus === AITaskStatus.FAILED &&
+      finalTask.status === AITaskStatus.FAILED &&
+      finalTask.creditId
+    ) {
+      await refundCredits(finalTask.creditId);
+    }
+
+    return finalTask;
+  }
+
   const result = await db().transaction(async (tx: any) => {
     // task failed, Revoke credit consumption record
     if (updateAITask.status === AITaskStatus.FAILED && updateAITask.creditId) {

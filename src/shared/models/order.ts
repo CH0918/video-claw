@@ -1,5 +1,6 @@
 import { and, count, desc, eq, or } from 'drizzle-orm';
 
+import { envConfigs } from '@/config';
 import { db } from '@/core/db';
 import { credit, order, subscription } from '@/config/db/schema';
 import { PaymentType } from '@/extensions/payment/types';
@@ -224,6 +225,15 @@ export async function updateOrderInTransaction({
     return updateOrderByOrderNo(orderNo, updateOrder);
   }
 
+  if (envConfigs.database_provider === 'd1') {
+    return updateOrderInD1({
+      orderNo,
+      updateOrder,
+      newSubscription,
+      newCredit,
+    });
+  }
+
   // need transaction
   const result = await db().transaction(async (tx: any) => {
     let result: any = {
@@ -351,6 +361,15 @@ export async function updateSubscriptionInTransaction({
     );
   }
 
+  if (envConfigs.database_provider === 'd1') {
+    return updateSubscriptionInD1({
+      subscriptionNo,
+      updateSubscription,
+      newOrder,
+      newCredit,
+    });
+  }
+
   // need transaction
   const result = await db().transaction(async (tx: any) => {
     let result: any = {
@@ -418,6 +437,194 @@ export async function updateSubscriptionInTransaction({
 
     return result;
   });
+
+  return result;
+}
+
+function normalizeGrantCreditForD1(newCredit: NewCredit): NewCredit {
+  if (!newCredit.orderNo) {
+    return newCredit;
+  }
+
+  return {
+    ...newCredit,
+    transactionNo: `grant:${newCredit.orderNo}`,
+  };
+}
+
+async function findCreditByTransactionNo(transactionNo: string) {
+  const [result] = await db()
+    .select()
+    .from(credit)
+    .where(eq(credit.transactionNo, transactionNo))
+    .limit(1);
+
+  return result ?? null;
+}
+
+async function upsertSubscriptionForD1(newSubscription: NewSubscription) {
+  await db().insert(subscription).values(newSubscription).onConflictDoNothing();
+
+  const [result] = await db()
+    .select()
+    .from(subscription)
+    .where(
+      and(
+        eq(subscription.subscriptionId, newSubscription.subscriptionId),
+        eq(subscription.paymentProvider, newSubscription.paymentProvider)
+      )
+    )
+    .limit(1);
+
+  return result ?? null;
+}
+
+async function upsertGrantCreditForD1(newCredit: NewCredit) {
+  const normalizedCredit = normalizeGrantCreditForD1(newCredit);
+
+  await db().insert(credit).values(normalizedCredit).onConflictDoNothing();
+
+  const existingCredit = await findCreditByTransactionNo(
+    normalizedCredit.transactionNo
+  );
+
+  return existingCredit;
+}
+
+async function updateOrderInD1({
+  orderNo,
+  updateOrder,
+  newSubscription,
+  newCredit,
+}: {
+  orderNo: string;
+  updateOrder: UpdateOrder;
+  newSubscription?: NewSubscription;
+  newCredit?: NewCredit;
+}) {
+  const result: any = {
+    order: null,
+    subscription: null,
+    credit: null,
+  };
+
+  let currentOrder: any = null;
+
+  if (updateOrder.status === OrderStatus.PAID) {
+    const [updatedOrder] = await db()
+      .update(order)
+      .set(updateOrder)
+      .where(
+        and(
+          eq(order.orderNo, orderNo),
+          or(
+            eq(order.status, OrderStatus.CREATED),
+            eq(order.status, OrderStatus.PENDING)
+          )
+        )
+      )
+      .returning();
+
+    if (updatedOrder) {
+      currentOrder = updatedOrder;
+    } else {
+      const existingOrder = await findOrderByOrderNo(orderNo);
+      if (!existingOrder || existingOrder.status !== OrderStatus.PAID) {
+        console.log(
+          `Order ${orderNo} already paid or not in CREATED status, skipping update`
+        );
+        return result;
+      }
+      currentOrder = existingOrder;
+    }
+  } else {
+    currentOrder = await updateOrderByOrderNo(orderNo, updateOrder);
+    if (!currentOrder) {
+      return result;
+    }
+  }
+
+  result.order = currentOrder;
+
+  if (newSubscription) {
+    result.subscription = await upsertSubscriptionForD1(newSubscription);
+
+    if (
+      result.order &&
+      result.subscription?.subscriptionNo &&
+      result.order.subscriptionNo !== result.subscription.subscriptionNo
+    ) {
+      const updatedOrder = await updateOrderByOrderNo(orderNo, {
+        subscriptionNo: result.subscription.subscriptionNo,
+      });
+
+      result.order = updatedOrder ?? result.order;
+    }
+  }
+
+  if (newCredit && result.order?.status === OrderStatus.PAID) {
+    const creditToInsert = result.subscription?.subscriptionNo
+      ? {
+          ...newCredit,
+          subscriptionNo: result.subscription.subscriptionNo,
+        }
+      : newCredit;
+
+    result.credit = await upsertGrantCreditForD1(creditToInsert);
+  }
+
+  return result;
+}
+
+async function updateSubscriptionInD1({
+  subscriptionNo,
+  updateSubscription,
+  newOrder,
+  newCredit,
+}: {
+  subscriptionNo: string;
+  updateSubscription: UpdateSubscription;
+  newOrder?: NewOrder;
+  newCredit?: NewCredit;
+}) {
+  const result: any = {
+    order: null,
+    subscription: null,
+    credit: null,
+  };
+
+  if (newOrder) {
+    try {
+      await db().insert(order).values(newOrder).onConflictDoNothing();
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+    }
+
+    if (newOrder.transactionId && newOrder.paymentProvider) {
+      result.order = await findOrderByTransactionId({
+        transactionId: newOrder.transactionId,
+        paymentProvider: newOrder.paymentProvider,
+      });
+    }
+
+    if (!result.order) {
+      result.order = await findOrderByOrderNo(newOrder.orderNo);
+    }
+  }
+
+  result.subscription = await updateSubscriptionBySubscriptionNo(
+    subscriptionNo,
+    updateSubscription
+  );
+
+  if (newCredit && result.order?.orderNo) {
+    result.credit = await upsertGrantCreditForD1({
+      ...newCredit,
+      orderNo: result.order.orderNo,
+    });
+  }
 
   return result;
 }

@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { and, eq, gt, inArray, isNull, or } from 'drizzle-orm';
 
+import { envConfigs } from '@/config';
 import { db } from '@/core/db';
 import { permission, role, rolePermission, userRole } from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
@@ -395,7 +396,30 @@ export async function assignRolesToUser(
   userId: string,
   roleIds: string[]
 ): Promise<void> {
-  await db().transaction(async (tx: any) => {
+  const d = db();
+
+  if (envConfigs.database_provider === 'd1') {
+    const queries: any[] = [
+      d.delete(userRole).where(eq(userRole.userId, userId)),
+    ];
+
+    if (roleIds.length > 0) {
+      queries.push(
+        d.insert(userRole).values(
+          roleIds.map((roleId) => ({
+            id: getUuid(),
+            userId,
+            roleId,
+          }))
+        )
+      );
+    }
+
+    await d.batch(queries as any);
+    return;
+  }
+
+  await d.transaction(async (tx: any) => {
     await tx.delete(userRole).where(eq(userRole.userId, userId));
 
     if (roleIds.length > 0) {

@@ -1,8 +1,10 @@
 import { and, asc, count, desc, eq, gt, isNull, or, sql, sum } from 'drizzle-orm';
 
+import { envConfigs } from '@/config';
 import { db } from '@/core/db';
 import { credit } from '@/config/db/schema';
-import { getSnowId, getUuid } from '@/shared/lib/hash';
+import { isUniqueConstraintError } from '@/shared/lib/db-error';
+import { getSnowId, getUuid, md5 } from '@/shared/lib/hash';
 import { safeJsonParse } from '@/shared/lib/api-security';
 
 import { getAllConfigs } from './config';
@@ -189,6 +191,19 @@ export async function consumeCredits({
 
   const currentTime = new Date();
 
+  if (envConfigs.database_provider === 'd1' && !tx) {
+    return consumeCreditsOnD1({
+      userId,
+      credits,
+      scene,
+      description,
+      metadata,
+      referenceType,
+      referenceId,
+      currentTime,
+    });
+  }
+
   // consume credits
   const execute = async (tx: any) => {
     // 1. check credits balance
@@ -361,6 +376,10 @@ export async function getRemainingCredits(userId: string): Promise<number> {
 
 // refund a consumed credit transaction
 export async function refundCredits(creditId: string) {
+  if (envConfigs.database_provider === 'd1') {
+    return refundCreditsOnD1(creditId);
+  }
+
   return await db().transaction(async (tx: any) => {
     const [consumedCredit] = await tx
       .select()
@@ -400,6 +419,308 @@ export async function refundCredits(creditId: string) {
 
     return true;
   });
+}
+
+function buildD1ConsumeTransactionNo({
+  userId,
+  referenceType,
+  referenceId,
+}: {
+  userId: string;
+  referenceType?: string;
+  referenceId?: string;
+}) {
+  if (referenceType && referenceId) {
+    return `consume:${md5(`${userId}:${referenceType}:${referenceId}`)}`;
+  }
+
+  return getSnowId();
+}
+
+function isD1OptimisticConflict(error: unknown) {
+  const message = String((error as Error | undefined)?.message || '').toLowerCase();
+  return (
+    message.includes('malformed json') ||
+    message.includes('d1 optimistic conflict')
+  );
+}
+
+function createD1OptimisticConflictError(message = 'D1 optimistic conflict') {
+  return new Error(message);
+}
+
+async function consumeCreditsOnD1({
+  userId,
+  credits,
+  scene,
+  description,
+  metadata,
+  referenceType,
+  referenceId,
+  currentTime,
+}: {
+  userId: string;
+  credits: number;
+  scene?: string;
+  description?: string;
+  metadata?: string;
+  referenceType?: string;
+  referenceId?: string;
+  currentTime: Date;
+}) {
+  const transactionNo = buildD1ConsumeTransactionNo({
+    userId,
+    referenceType,
+    referenceId,
+  });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (referenceType && referenceId) {
+      const existingConsume = await findActiveConsumeCreditByReference({
+        userId,
+        referenceType,
+        referenceId,
+      });
+
+      if (existingConsume) {
+        return existingConsume;
+      }
+    }
+
+    const [creditsBalance] = await db()
+      .select({
+        total: sum(credit.remainingCredits),
+      })
+      .from(credit)
+      .where(
+        and(
+          eq(credit.userId, userId),
+          eq(credit.transactionType, CreditTransactionType.GRANT),
+          eq(credit.status, CreditStatus.ACTIVE),
+          gt(credit.remainingCredits, 0),
+          or(isNull(credit.expiresAt), gt(credit.expiresAt, currentTime))
+        )
+      );
+
+    if (
+      !creditsBalance ||
+      !creditsBalance.total ||
+      parseFloat(creditsBalance.total) < credits
+    ) {
+      throw new Error(
+        `Insufficient credits, ${creditsBalance?.total || 0} < ${credits}`
+      );
+    }
+
+    let remainingToConsume = credits;
+    let batchNo = 1;
+    const maxBatchNo = 10;
+    const batchSize = 1000;
+    const consumedItems: any[] = [];
+
+    while (remainingToConsume > 0) {
+      const batchCredits = await db()
+        .select()
+        .from(credit)
+        .where(
+          and(
+            eq(credit.userId, userId),
+            eq(credit.transactionType, CreditTransactionType.GRANT),
+            eq(credit.status, CreditStatus.ACTIVE),
+            gt(credit.remainingCredits, 0),
+            or(isNull(credit.expiresAt), gt(credit.expiresAt, currentTime))
+          )
+        )
+        .orderBy(sql`${credit.expiresAt} is null`, asc(credit.expiresAt))
+        .limit(batchSize);
+
+      if (batchCredits.length === 0) {
+        break;
+      }
+
+      for (const item of batchCredits) {
+        if (remainingToConsume <= 0) {
+          break;
+        }
+
+        const toConsume = Math.min(remainingToConsume, item.remainingCredits);
+
+        consumedItems.push({
+          creditId: item.id,
+          transactionNo: item.transactionNo,
+          expiresAt: item.expiresAt,
+          creditsToConsume: remainingToConsume,
+          creditsConsumed: toConsume,
+          creditsBefore: item.remainingCredits,
+          creditsAfter: item.remainingCredits - toConsume,
+          batchSize,
+          batchNo,
+        });
+
+        remainingToConsume -= toConsume;
+      }
+
+      batchNo += 1;
+
+      if (remainingToConsume > 0 && batchNo > maxBatchNo) {
+        throw new Error(`Too many batches: ${batchNo} > ${maxBatchNo}`);
+      }
+    }
+
+    if (remainingToConsume > 0) {
+      throw new Error(
+        `Insufficient credits after optimistic check, ${credits - remainingToConsume} < ${credits}`
+      );
+    }
+
+    const consumedCredit: NewCredit = {
+      id: getUuid(),
+      transactionNo,
+      transactionType: CreditTransactionType.CONSUME,
+      transactionScene: scene,
+      userId,
+      status: CreditStatus.ACTIVE,
+      description,
+      credits: -credits,
+      consumedDetail: JSON.stringify(consumedItems),
+      metadata,
+      referenceType,
+      referenceId,
+    };
+
+    const d = db();
+    const queries: any[] = [
+      d.insert(credit).values(consumedCredit).returning(),
+    ];
+
+    for (const item of consumedItems) {
+      queries.push(
+        d.update(credit)
+          .set({
+            remainingCredits: item.creditsAfter,
+          })
+          .where(
+            and(
+              eq(credit.id, item.creditId),
+              eq(credit.remainingCredits, item.creditsBefore),
+              eq(credit.status, CreditStatus.ACTIVE),
+              eq(credit.transactionType, CreditTransactionType.GRANT)
+            )
+          )
+          .returning({ id: credit.id })
+      );
+    }
+
+    try {
+      const batchResults = await d.batch(queries as any);
+
+      for (let index = 1; index < batchResults.length; index += 1) {
+        const updatedRows = batchResults[index] as Array<{ id: string }>;
+        if (!Array.isArray(updatedRows) || updatedRows.length !== 1) {
+          throw createD1OptimisticConflictError();
+        }
+      }
+
+      return batchResults[0][0];
+    } catch (error) {
+      if (
+        (isUniqueConstraintError(error) || isD1OptimisticConflict(error)) &&
+        referenceType &&
+        referenceId
+      ) {
+        const existingConsume = await findActiveConsumeCreditByReference({
+          userId,
+          referenceType,
+          referenceId,
+        });
+
+        if (existingConsume) {
+          return existingConsume;
+        }
+      }
+
+      if (isD1OptimisticConflict(error) && attempt < 2) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error('consume credits conflict, please retry');
+}
+
+async function refundCreditsOnD1(creditId: string) {
+  const [consumedCredit] = await db()
+    .select()
+    .from(credit)
+    .where(eq(credit.id, creditId))
+    .limit(1);
+
+  if (
+    !consumedCredit ||
+    consumedCredit.status !== CreditStatus.ACTIVE ||
+    consumedCredit.transactionType !== CreditTransactionType.CONSUME
+  ) {
+    return false;
+  }
+
+  const consumedItems = safeJsonParse<any[]>(consumedCredit.consumedDetail, []);
+  const d = db();
+  const queries: any[] = [
+    d.update(credit)
+      .set({
+        status: CreditStatus.DELETED,
+      })
+      .where(
+        and(
+          eq(credit.id, creditId),
+          eq(credit.status, CreditStatus.ACTIVE),
+          eq(credit.transactionType, CreditTransactionType.CONSUME)
+        )
+      )
+      .returning({ id: credit.id }),
+  ];
+
+  for (const item of consumedItems) {
+    if (item && item.creditId && item.creditsConsumed > 0) {
+      queries.push(
+        d.update(credit)
+          .set({
+            remainingCredits: sql`${credit.remainingCredits} + ${item.creditsConsumed}`,
+          })
+          .where(eq(credit.id, item.creditId))
+          .returning({ id: credit.id })
+      );
+    }
+  }
+
+  try {
+    const batchResults = await d.batch(queries as any);
+
+    for (let index = 0; index < batchResults.length; index += 1) {
+      const updatedRows = batchResults[index] as Array<{ id: string }>;
+      if (!Array.isArray(updatedRows) || updatedRows.length !== 1) {
+        throw createD1OptimisticConflictError();
+      }
+    }
+
+    return true;
+  } catch (error) {
+    if (isD1OptimisticConflict(error)) {
+      const [currentCredit] = await db()
+        .select()
+        .from(credit)
+        .where(eq(credit.id, creditId))
+        .limit(1);
+
+      if (currentCredit?.status === CreditStatus.DELETED) {
+        return false;
+      }
+    }
+
+    throw error;
+  }
 }
 
 export async function findActiveConsumeCreditByReference({

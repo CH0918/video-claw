@@ -18,29 +18,47 @@ export type Configs = Record<string, string>;
 export const CACHE_TAG_CONFIGS = 'configs';
 
 export async function saveConfigs(configs: Record<string, string>) {
-  const result = await db().transaction(async (tx: any) => {
-    const configEntries = Object.entries(configs);
-    const results: any[] = [];
+  const configEntries = Object.entries(configs);
+  const d = db();
 
-    for (const [name, configValue] of configEntries) {
-      const [upsertResult] = await tx
+  let results: any[];
+
+  if (envConfigs.database_provider === 'd1') {
+    // D1 doesn't support SQL transactions (BEGIN/COMMIT).
+    // Use Drizzle's batch() which maps to D1's native atomic batch API.
+    const queries = configEntries.map(([name, configValue]) =>
+      d
         .insert(config)
         .values({ name, value: configValue })
         .onConflictDoUpdate({
           target: config.name,
           set: { value: configValue },
         })
-        .returning();
-
-      results.push(upsertResult);
-    }
-
-    return results;
-  });
+        .returning()
+    );
+    const batchResults = await d.batch(queries);
+    results = batchResults.map((r: any[]) => r[0]);
+  } else {
+    results = await d.transaction(async (tx: any) => {
+      const res: any[] = [];
+      for (const [name, configValue] of configEntries) {
+        const [upsertResult] = await tx
+          .insert(config)
+          .values({ name, value: configValue })
+          .onConflictDoUpdate({
+            target: config.name,
+            set: { value: configValue },
+          })
+          .returning();
+        res.push(upsertResult);
+      }
+      return res;
+    });
+  }
 
   revalidateTag(CACHE_TAG_CONFIGS);
 
-  return result;
+  return results;
 }
 
 export async function addConfig(newConfig: NewConfig) {

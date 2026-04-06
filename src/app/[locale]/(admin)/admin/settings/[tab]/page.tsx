@@ -45,22 +45,30 @@ export default async function SettingsPage({
   const handleSubmit = async (data: FormData, passby: any) => {
     'use server';
 
-    const user = await getUserInfo();
+    try {
+      const user = await getUserInfo();
 
-    if (!user) {
-      throw new Error('no auth');
+      if (!user) {
+        throw new Error('no auth');
+      }
+
+      data.forEach((value, name) => {
+        configs[name] = value as string;
+      });
+
+      await saveConfigs(configs);
+
+      return {
+        status: 'success',
+        message: 'Settings updated',
+      };
+    } catch (e: any) {
+      console.error('handleSubmit error:', e?.message, e?.stack);
+      return {
+        status: 'error',
+        message: e?.message || 'Unknown error',
+      };
     }
-
-    data.forEach((value, name) => {
-      configs[name] = value as string;
-    });
-
-    await saveConfigs(configs);
-
-    return {
-      status: 'success',
-      message: 'Settings updated',
-    };
   };
 
   let forms: FormType[] = [];
