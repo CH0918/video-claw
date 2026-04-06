@@ -21,6 +21,7 @@
     "title": "Credits Balance",
     "buttons": {
       "purchase": "Purchase Credits"
-    }
+    },
+    "coming_soon": "Payments are not available yet. Please check back in 1-2 days."
   }
 }

@@ -21,7 +21,8 @@
       "subscribe": "Subscribe",
       "manage": "Manage Subscription",
       "cancel": "Cancel Subscription"
-    }
+    },
+    "coming_soon": "Payments are not available yet. Please check back in 1-2 days."
   },
   "list": {
     "title": "Subscriptions History",

@@ -21,7 +21,8 @@
       "subscribe": "去订阅",
       "manage": "管理订阅",
       "cancel": "取消订阅"
-    }
+    },
+    "coming_soon": "暂时没有开放充值，请等待 1-2 天再来看看"
   },
   "list": {
     "title": "订阅记录",

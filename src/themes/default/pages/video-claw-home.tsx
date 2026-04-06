@@ -4,7 +4,6 @@ import {
   BookOpen,
   BriefcaseBusiness,
   Check,
-  CirclePlay,
   GraduationCap,
   MessageSquareMore,
   Mic2,
@@ -233,16 +232,23 @@ export default function VideoClawHome({
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-[28px] border border-border bg-card p-4 shadow-xl sm:p-5 lg:p-6">
-            <div className="relative aspect-video overflow-hidden rounded-[24px] border border-border bg-[radial-gradient(circle_at_top,rgba(181,77,46,0.22),transparent_32%),linear-gradient(135deg,rgba(38,32,29,0.98),rgba(24,21,19,0.92))]">
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:40px_40px] opacity-40" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_48%,rgba(0,0,0,0.28)_100%)]" />
-              <div className="relative flex h-full items-center justify-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm sm:h-24 sm:w-24">
-                  <CirclePlay className="h-9 w-9 text-white sm:h-11 sm:w-11" />
-                </div>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="flex h-10 items-center gap-2 border-b border-border bg-muted/60 px-4">
+              <div className="flex gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+                <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+                <span className="h-3 w-3 rounded-full bg-[#28c840]" />
               </div>
+              <span className="flex-1 text-center text-xs text-muted-foreground">Video Claw</span>
             </div>
+            <video
+              className="aspect-video w-full"
+              src="https://res.video-claw.cloud/product_demo.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
           </div>
         </div>
       </section>

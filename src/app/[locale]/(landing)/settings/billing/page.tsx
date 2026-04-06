@@ -4,16 +4,16 @@ import { getTranslations } from 'next-intl/server';
 import { Empty } from '@/shared/blocks/common';
 import { PanelCard } from '@/shared/blocks/panel';
 import { TableCard } from '@/shared/blocks/table';
-import { Button } from '@/shared/components/ui/button';
+import { ComingSoonButton } from '@/shared/blocks/common/coming-soon-button';
 import {
   getCurrentSubscription,
   getSubscriptions,
   getSubscriptionsCount,
-  Subscription,
+  // Subscription, // TODO: 订阅支付接入后恢复使用
   SubscriptionStatus,
 } from '@/shared/models/subscription';
 import { getUserInfo } from '@/shared/models/user';
-import { Button as ButtonType, Tab } from '@/shared/types/blocks/common';
+import { Button as ButtonType, Tab } from '@/shared/types/blocks/common'; // TODO: ButtonType 订阅支付接入后恢复使用
 import { type Table } from '@/shared/types/blocks/table';
 
 export default async function BillingPage({
@@ -195,45 +195,45 @@ export default async function BillingPage({
     },
   ];
 
-  let buttons: ButtonType[] = [];
-  if (currentSubscription) {
-    buttons = [
-      {
-        title: t('view.buttons.adjust'),
-        url: '/pricing',
-        target: '_blank',
-        icon: 'Pencil',
-        size: 'sm',
-      },
-    ];
-    if (currentSubscription.paymentUserId) {
-      buttons.push({
-        title: t('view.buttons.manage'),
-        url: `/settings/billing/retrieve?subscription_no=${currentSubscription.subscriptionNo}`,
-        target: '_blank',
-        icon: 'Settings',
-        size: 'sm',
-        variant: 'outline',
-      });
-    }
-  } else {
-    buttons = [
-      {
-        title: t('view.buttons.subscribe'),
-        url: '/pricing',
-        target: '_blank',
-        icon: 'ArrowUpRight',
-        size: 'sm',
-      },
-    ];
-  }
+  // TODO: 订阅支付接入后恢复按钮逻辑
+  // let buttons: ButtonType[] = [];
+  // if (currentSubscription) {
+  //   buttons = [
+  //     {
+  //       title: t('view.buttons.adjust'),
+  //       url: '/pricing',
+  //       target: '_blank',
+  //       icon: 'Pencil',
+  //       size: 'sm',
+  //     },
+  //   ];
+  //   if (currentSubscription.paymentUserId) {
+  //     buttons.push({
+  //       title: t('view.buttons.manage'),
+  //       url: `/settings/billing/retrieve?subscription_no=${currentSubscription.subscriptionNo}`,
+  //       target: '_blank',
+  //       icon: 'Settings',
+  //       size: 'sm',
+  //       variant: 'outline',
+  //     });
+  //   }
+  // } else {
+  //   buttons = [
+  //     {
+  //       title: t('view.buttons.subscribe'),
+  //       url: '/pricing',
+  //       target: '_blank',
+  //       icon: 'ArrowUpRight',
+  //       size: 'sm',
+  //     },
+  //   ];
+  // }
 
   return (
     <div className="space-y-8">
       <PanelCard
         label={currentSubscription?.status}
         title={t('view.title')}
-        buttons={buttons}
         className="max-w-md"
       >
         <div className="text-primary text-3xl font-bold">
@@ -261,6 +261,14 @@ export default async function BillingPage({
             )}
           </>
         ) : null}
+        <div className="mt-4">
+          <ComingSoonButton
+            title={t('view.buttons.subscribe')}
+            message={t('view.coming_soon')}
+            icon="ArrowUpRight"
+            size="sm"
+          />
+        </div>
       </PanelCard>
       <TableCard title={t('list.title')} tabs={tabs} table={table} />
     </div>

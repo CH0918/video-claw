@@ -1,10 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 
 import { Empty } from '@/shared/blocks/common';
+import { ComingSoonButton } from '@/shared/blocks/common/coming-soon-button';
 import { PanelCard } from '@/shared/blocks/panel';
 import { TableCard } from '@/shared/blocks/table';
 import {
-  Credit,
   CreditStatus,
   CreditTransactionType,
   getCredits,
@@ -119,20 +119,22 @@ export default async function CreditsPage({
 
   return (
     <div className="space-y-8">
+      {/* TODO: 订阅支付接入后恢复 PanelCard 的 buttons 属性:
+        buttons={[{ title: t('view.buttons.purchase'), url: '/pricing', target: '_blank', icon: 'Coins' }]}
+      */}
       <PanelCard
         title={t('view.title')}
-        buttons={[
-          {
-            title: t('view.buttons.purchase'),
-            url: '/pricing',
-            target: '_blank',
-            icon: 'Coins',
-          },
-        ]}
         className="max-w-md"
       >
         <div className="text-primary text-3xl font-bold">
           {remainingCredits}
+        </div>
+        <div className="mt-4">
+          <ComingSoonButton
+            title={t('view.buttons.purchase')}
+            message={t('view.coming_soon')}
+            icon="Coins"
+          />
         </div>
       </PanelCard>
       <TableCard title={t('list.title')} tabs={tabs} table={table} />
