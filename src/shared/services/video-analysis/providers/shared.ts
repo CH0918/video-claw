@@ -156,7 +156,7 @@ export function buildTopicPrompt(
     `Use timestamps and quote text that exist in the transcript. Do not paraphrase the quote.`,
     buildVideoInfoBlock(videoInfo),
     '<transcript>',
-    formatTranscriptForPrompt(transcript, Math.min(transcript.length, 240)),
+    formatTranscriptForPrompt(transcript),
     '</transcript>',
   ].join('\n');
 }
@@ -171,7 +171,7 @@ export function buildSummaryPrompt(
     `Points should be specific, grounded in the transcript, and include timestamps.`,
     buildVideoInfoBlock(videoInfo),
     '<transcript>',
-    formatTranscriptForPrompt(transcript, Math.min(transcript.length, 260)),
+    formatTranscriptForPrompt(transcript),
     '</transcript>',
   ].join('\n');
 }
@@ -234,7 +234,7 @@ export function buildChatPrompt(
         'Return strict JSON only with shape {"answer":"string","timestamps":["MM:SS"]}. Do not wrap JSON in markdown fences.',
         buildVideoInfoBlock(videoInfo),
         '<transcript>',
-        formatTranscriptForPrompt(transcript, Math.min(transcript.length, 320)),
+        formatTranscriptForPrompt(transcript),
         '</transcript>',
       ].join('\n'),
     },
@@ -265,7 +265,7 @@ export function buildStreamingChatPrompt(
         'Return plain text only. Do not return JSON or markdown code fences.',
         buildVideoInfoBlock(videoInfo),
         '<transcript>',
-        formatTranscriptForPrompt(transcript, Math.min(transcript.length, 320)),
+        formatTranscriptForPrompt(transcript),
         '</transcript>',
       ].join('\n'),
     },

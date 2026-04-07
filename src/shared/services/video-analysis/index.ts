@@ -509,18 +509,20 @@ export async function translateVideoCaptions(
 
   const translations: string[] = new Array(transcript.length);
 
-  for (const chunk of chunks) {
-    const translatedChunk = await reasoningProvider.translateTexts({
-      texts: chunk.texts,
-      targetLanguage: normalizedTarget,
-      sourceLanguage: analysis.videoInfo.language,
-      videoInfo: analysis.videoInfo,
-    });
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      const translatedChunk = await reasoningProvider.translateTexts({
+        texts: chunk.texts,
+        targetLanguage: normalizedTarget,
+        sourceLanguage: analysis.videoInfo.language,
+        videoInfo: analysis.videoInfo,
+      });
 
-    translatedChunk.forEach((text, offset) => {
-      translations[chunk.start + offset] = text;
-    });
-  }
+      translatedChunk.forEach((text, offset) => {
+        translations[chunk.start + offset] = text;
+      });
+    })
+  );
 
   return {
     language: normalizedTarget,
