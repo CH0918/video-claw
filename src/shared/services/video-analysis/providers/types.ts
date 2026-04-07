@@ -64,7 +64,7 @@ export interface TranscriptProvider {
     taskId: string;
     meta?: Record<string, unknown>;
   }>;
-  getTaskStatus(taskId: string): Promise<TranscriptTaskResult>;
+  getTaskStatus(taskId: string, storedMeta?: Record<string, unknown>): Promise<TranscriptTaskResult>;
 }
 
 export interface VideoReasoningProvider {

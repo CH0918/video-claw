@@ -159,7 +159,7 @@ export class DeapiTranscriptProvider implements TranscriptProvider {
     };
   }
 
-  async getTaskStatus(taskId: string): Promise<TranscriptTaskResult> {
+  async getTaskStatus(taskId: string, _storedMeta?: Record<string, unknown>): Promise<TranscriptTaskResult> {
     const response = await fetch(
       `${normalizeBaseUrl(this.config.baseUrl)}/api/v1/client/request-status/${taskId}`,
       {

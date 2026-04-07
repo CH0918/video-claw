@@ -49,11 +49,20 @@ export async function getVideoAnalysisConfigs() {
 
   return {
     transcript: {
-      provider: configs.video_transcript_provider || 'deapi',
+      provider: 'transcriptapi' as const,
+      baseUrl: 'https://transcriptapi.com/api/v2',
+      apiKey: requireValue(
+        configs.video_transcriptapi_api_key || '',
+        'video_transcriptapi_api_key is not set'
+      ),
+      model: '',
+    },
+    deapiTranscript: {
+      provider: 'deapi' as const,
       baseUrl: configs.video_transcript_base_url || 'https://api.deapi.ai',
       apiKey: requireValue(
         configs.video_transcript_api_key || '',
-        'video_transcript_api_key is not set'
+        'video_transcript_api_key is not set (needed as fallback)'
       ),
       model: configs.video_transcript_model || 'WhisperLargeV3',
     },
@@ -408,9 +417,34 @@ export async function startPreparedVideoAnalysis(
   const providerConfigs = await getVideoAnalysisConfigs();
   const transcriptProvider = getTranscriptProvider(providerConfigs.transcript);
   const oembed = await fetchYouTubeOEmbed(prepared.sourceUrl);
-  const submitted = await transcriptProvider.submitVideo({
-    url: prepared.sourceUrl,
-  });
+
+  let submitted: { taskId: string; meta?: Record<string, unknown> };
+  let actualProvider: string = providerConfigs.transcript.provider;
+
+  try {
+    submitted = await transcriptProvider.submitVideo({
+      url: prepared.sourceUrl,
+    });
+  } catch (error) {
+    if (
+      actualProvider === 'transcriptapi' &&
+      providerConfigs.deapiTranscript.apiKey
+    ) {
+      console.log(
+        `[fallback] TranscriptAPI failed, falling back to deAPI:`,
+        error instanceof Error ? error.message : error
+      );
+      const fallbackProvider = getTranscriptProvider(
+        providerConfigs.deapiTranscript
+      );
+      submitted = await fallbackProvider.submitVideo({
+        url: prepared.sourceUrl,
+      });
+      actualProvider = 'deapi';
+    } else {
+      throw error;
+    }
+  }
 
   const updated = await updateVideoAnalysis(record.id, {
     sourceUrl: prepared.sourceUrl,
@@ -418,7 +452,7 @@ export async function startPreparedVideoAnalysis(
     title: oembed.title || record.title,
     author: oembed.author || record.author,
     thumbnailUrl: oembed.thumbnailUrl || record.thumbnailUrl,
-    provider: providerConfigs.transcript.provider,
+    provider: actualProvider,
     providerModel: providerConfigs.transcript.model,
     providerTaskId: submitted.taskId,
     providerMeta: JSON.stringify(submitted.meta || {}),
@@ -498,19 +532,32 @@ async function runReasoningForTranscript(
   transcript: TranscriptSegment[],
   videoInfo: ReturnType<typeof buildVideoMetadata>
 ) {
+  const reasoningStart = Date.now();
   const providerConfigs = await getVideoAnalysisConfigs();
   const reasoningProvider = getVideoReasoningProvider(providerConfigs.reasoning);
+
+  const topicsStart = Date.now();
+  const summaryStart = Date.now();
+
   const [topics, summary] = await Promise.all([
     reasoningProvider.generateTopics({
       transcript,
       videoInfo,
       maxTopics: 4,
+    }).then((result) => {
+      console.log(`[perf] generateTopics took ${Date.now() - topicsStart}ms`);
+      return result;
     }),
     reasoningProvider.generateSummary({
       transcript,
       videoInfo,
+    }).then((result) => {
+      console.log(`[perf] generateSummary took ${Date.now() - summaryStart}ms`);
+      return result;
     }),
   ]);
+
+  console.log(`[perf] runReasoningForTranscript total took ${Date.now() - reasoningStart}ms (transcript segments: ${transcript.length})`);
 
   return {
     providerName: providerConfigs.reasoning.provider,
@@ -521,12 +568,14 @@ async function runReasoningForTranscript(
 }
 
 export async function getVideoAnalysisStatus(analysisId: string) {
+  const statusStart = Date.now();
   const record = await findVideoAnalysisById(analysisId);
   if (!record) {
     throw new Error('analysis not found');
   }
 
   if (record.status === 'success') {
+    console.log(`[perf] getVideoAnalysisStatus(${analysisId}) hit cache, took ${Date.now() - statusStart}ms`);
     return {
       analysisId: record.id,
       status: 'success' as const,
@@ -539,16 +588,34 @@ export async function getVideoAnalysisStatus(analysisId: string) {
   }
 
   const providerConfigs = await getVideoAnalysisConfigs();
-  const transcriptProvider = getTranscriptProvider(providerConfigs.transcript);
-  const task = await transcriptProvider.getTaskStatus(record.providerTaskId);
+  const storedProvider = record.provider || providerConfigs.transcript.provider;
+  const transcriptConfig =
+    storedProvider === 'deapi'
+      ? providerConfigs.deapiTranscript
+      : providerConfigs.transcript;
+  const transcriptProvider = getTranscriptProvider(transcriptConfig);
+
+  const storedMeta = record.providerMeta
+    ? JSON.parse(record.providerMeta)
+    : undefined;
+
+  const taskStatusStart = Date.now();
+  const task = await transcriptProvider.getTaskStatus(
+    record.providerTaskId,
+    storedMeta
+  );
+  console.log(`[perf] ${storedProvider} getTaskStatus took ${Date.now() - taskStatusStart}ms (status: ${task.status})`);
 
   if (task.status === 'pending' || task.status === 'processing') {
+    const dbStart = Date.now();
     await updateVideoAnalysis(record.id, {
       status: task.status,
       providerMeta: JSON.stringify(task.meta || {}),
       errorMessage: null,
       updatedAt: new Date(),
     });
+    console.log(`[perf] updateVideoAnalysis (${task.status}) took ${Date.now() - dbStart}ms`);
+    console.log(`[perf] getVideoAnalysisStatus(${analysisId}) total took ${Date.now() - statusStart}ms`);
 
     return {
       analysisId: record.id,
@@ -564,6 +631,7 @@ export async function getVideoAnalysisStatus(analysisId: string) {
       updatedAt: new Date(),
     });
 
+    console.log(`[perf] getVideoAnalysisStatus(${analysisId}) error, total took ${Date.now() - statusStart}ms`);
     return {
       analysisId: record.id,
       status: 'error' as const,
@@ -596,6 +664,8 @@ export async function getVideoAnalysisStatus(analysisId: string) {
   });
 
   const reasoning = await runReasoningForTranscript(transcript, videoInfo);
+
+  const dbWriteStart = Date.now();
   const updated = await updateVideoAnalysis(record.id, {
     status: 'success',
     title: videoInfo.title,
@@ -612,6 +682,8 @@ export async function getVideoAnalysisStatus(analysisId: string) {
     errorMessage: null,
     updatedAt: new Date(),
   });
+  console.log(`[perf] updateVideoAnalysis (success) took ${Date.now() - dbWriteStart}ms`);
+  console.log(`[perf] getVideoAnalysisStatus(${analysisId}) completed, total took ${Date.now() - statusStart}ms`);
 
   return {
     analysisId: updated.id,

@@ -3,6 +3,7 @@ import {
 } from './deapi';
 import { DeepseekReasoningProvider } from './deepseek';
 import { EvolinkReasoningProvider } from './evolink';
+import { TranscriptApiProvider } from './transcriptapi';
 import {
   ReasoningProviderConfig,
   TranscriptProvider,
@@ -11,6 +12,10 @@ import {
 } from './types';
 
 export function getTranscriptProvider(config: TranscriptProviderConfig): TranscriptProvider {
+  if (config.provider === 'transcriptapi') {
+    return new TranscriptApiProvider(config);
+  }
+
   if (config.provider === 'deapi') {
     return new DeapiTranscriptProvider(config);
   }
