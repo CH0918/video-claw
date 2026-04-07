@@ -314,7 +314,7 @@ export function VerifyEmailPage({
             type="button"
             variant="ghost"
             className="w-full"
-            onClick={() => router.push(signInPath)}
+            onClick={navigateToSignInModal}
           >
             {t('back_to_sign_in')}
           </Button>

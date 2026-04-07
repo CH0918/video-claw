@@ -4,7 +4,7 @@ import { envConfigs } from '@/config';
 import { defaultLocale, locales } from '@/config/locale';
 import { getPosts, PostStatus, PostType } from '@/shared/models/post';
 
-// export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 function localizedUrl(path: string, locale: string): string {
