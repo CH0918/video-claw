@@ -4,6 +4,7 @@ import { envConfigs } from '@/config';
 import { locales, defaultLocale } from '@/config/locale';
 import { getPosts, PostStatus, PostType } from '@/shared/models/post';
 
+export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 function localizedUrl(path: string, locale: string): string {
@@ -16,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
 
   // Static public pages
-  const staticPages = ['/', '/blog', '/updates'];
+  const staticPages = ['/', '/blog', '/updates', '/youtube-summary'];
 
   const staticEntries: MetadataRoute.Sitemap = staticPages.flatMap((path) =>
     locales.map((locale) => ({
