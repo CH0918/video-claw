@@ -69,7 +69,7 @@ function extractSessionUser(data: any): User | null {
 }
 
 export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
-  const t = useTranslations('pages.video.chat');
+  const t = useTranslations('pages.youtube-summary');
   const content = useMemo(() => buildVideoChatCopy(t), [t]);
   const { data: session, isPending } = useSession();
   const sessionUser = extractSessionUser(session);
@@ -439,7 +439,7 @@ export function VideoChatPage({ locale, initialUrl }: VideoChatPageProps) {
     setAnalysis(null);
     setAnalysisState('submitting');
     setInputUrl(nextUrl);
-    router.replace(`/${locale}/video/chat?url=${encodeURIComponent(nextUrl)}`);
+    router.replace(`/${locale}/youtube-summary?url=${encodeURIComponent(nextUrl)}`);
 
     try {
       const result = await postJson<{

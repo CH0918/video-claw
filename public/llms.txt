@@ -1,0 +1,34 @@
+# VideoClaw
+
+> YouTube AI Summary, Transcript Search & Video Chat Workspace
+
+VideoClaw turns any YouTube video into a searchable learning workspace. Paste a public YouTube link to generate an AI summary, search the full transcript, jump to exact timestamps, and ask follow-up questions without losing the original context.
+
+## Features
+
+- **YouTube AI Summary**: Generate structured takeaways from any YouTube video before watching the full recording.
+- **Full Transcript Search**: Search the transcript by keyword, phrase, or question to find the right part of the video.
+- **Jump to Exact Timestamps**: Open the matched moment instantly instead of scrubbing through the full recording.
+- **ChatGPT-Style Follow-Up**: Ask deeper questions after reading the summary and keep answers tied to the same video.
+- **Transcript Verification**: Review the surrounding transcript and matched clip to confirm what the speaker actually meant.
+- **Subtitle Translation**: Translate subtitles into multiple languages for free.
+
+## Use Cases
+
+- **Students & Researchers**: Search lectures and interviews for specific claims, explanations, or examples.
+- **Knowledge Workers**: Review webinars, market discussions, and interviews with transcript search and exact timestamps.
+- **Creators & Podcast Learners**: Turn long conversations into a searchable workspace and extract key ideas.
+
+## Links
+
+- Website: https://video-claw.cloud
+- Workspace: https://video-claw.cloud/youtube-summary
+- Blog: https://video-claw.cloud/blog
+- Pricing: https://video-claw.cloud/pricing
+- Documentation: https://video-claw.cloud/docs
+
+## Pricing
+
+- Video analysis: 2 credits per video (previously analyzed videos are free to revisit)
+- AI Chat: Gemini 2.5 Flash Lite costs 0.25 credits/msg, Gemini 2.5 Flash costs 0.5 credits/msg, GPT and Claude cost 2 credits/msg
+- Subtitle translation: Free

@@ -12,7 +12,7 @@
       ],
       "primary_button": {
         "title": "立即开始",
-        "url": "/chat"
+        "url": "/youtube-summary"
       },
       "secondary_button": {
         "title": "查看功能",
@@ -28,7 +28,7 @@
       "eyebrow": "工作区",
       "title": "围绕原视频搭建的学习工作区",
       "description": "搜索字幕、打开对应片段，并在同一个界面里继续向 AI 提问。",
-      "browser_url": "video-claw.cloud/chat",
+      "browser_url": "video-claw.cloud/youtube-summary",
       "search_label": "搜索提示词",
       "search_terms": [
         "product idea",
@@ -179,7 +179,76 @@
         },
         {
           "question": "使用 Video Claw 需要多少积分？",
-          "answer": "视频分析每次消耗 2 积分（已分析过的视频可免费复用）。AI 聊天中，Gemini 系列模型免费使用，GPT 5.4 和 Claude 每条消息消耗 2 积分。字幕翻译完全免费。"
+          "answer": "视频分析每次消耗 2 积分（已分析过的视频可免费复用）。AI 聊天中，Gemini 2.5 Flash Lite 每条消息 0.25 积分，Gemini 2.5 Flash 每条消息 0.5 积分，GPT 和 Claude 每条消息 2 积分。字幕翻译完全免费。"
+        }
+      ]
+    },
+    "pricing": {
+      "eyebrow": "定价",
+      "title": "简单方案，完整功能",
+      "description": "所有方案均包含 AI 摘要、字幕搜索、时间点跳转和追问聊天。选择适合你学习节奏的订阅计划。",
+      "coming_soon": "支付功能即将上线，敬请期待！",
+      "items": [
+        {
+          "title": "免费",
+          "price": "$0",
+          "period": "",
+          "credits": "5",
+          "credits_label": "积分",
+          "description": "零门槛体验完整工作区。",
+          "features": [
+            "YouTube AI 摘要",
+            "全文字幕搜索",
+            "精确时间点跳转",
+            "AI 追问聊天",
+            "字幕翻译"
+          ],
+          "button": {
+            "title": "立即开始",
+            "url": "/youtube-summary"
+          },
+          "featured": false
+        },
+        {
+          "title": "入门版",
+          "price": "$15",
+          "period": "/月",
+          "credits": "100",
+          "credits_label": "积分 / 月",
+          "description": "适合每周从 YouTube 学习的用户。",
+          "features": [
+            "包含免费版全部功能",
+            "约 50 次视频分析 / 月",
+            "Gemini、GPT 和 Claude 模型",
+            "优先处理"
+          ],
+          "button": {
+            "title": "订阅",
+            "url": ""
+          },
+          "featured": false,
+          "coming_soon": true
+        },
+        {
+          "title": "专业版",
+          "price": "$29",
+          "period": "/月",
+          "credits": "220",
+          "credits_label": "积分 / 月",
+          "badge": "最划算",
+          "description": "适合每天依赖视频研究的重度用户和团队。",
+          "features": [
+            "包含入门版全部功能",
+            "约 110 次视频分析 / 月",
+            "每积分节省 27%",
+            "优先处理"
+          ],
+          "button": {
+            "title": "订阅",
+            "url": ""
+          },
+          "featured": true,
+          "coming_soon": true
         }
       ]
     },
@@ -188,7 +257,7 @@
       "description": "从一个链接开始，找到你真正需要的片段，并围绕原视频继续学习，而不是线性看完整支视频。",
       "primary_button": {
         "title": "打开工作区",
-        "url": "/chat"
+        "url": "/youtube-summary"
       },
       "secondary_button": {
         "title": "查看功能",

@@ -23,13 +23,25 @@
         {
           "title": "FAQ",
           "url": "/#faq"
+        },
+        {
+          "title": "Pricing",
+          "url": "/#pricing"
+        },
+        {
+          "title": "Blog",
+          "url": "/blog"
+        },
+        {
+          "title": "Updates",
+          "url": "/updates"
         }
       ]
     },
     "buttons": [
       {
         "title": "Get Started",
-        "url": "/video/chat",
+        "url": "/youtube-summary",
         "target": "_self",
         "variant": "default"
       }
@@ -67,7 +79,12 @@
             },
             {
               "title": "Workspace",
-              "url": "/video/chat",
+              "url": "/youtube-summary",
+              "target": "_self"
+            },
+            {
+              "title": "Pricing",
+              "url": "/#pricing",
               "target": "_self"
             }
           ]
@@ -83,6 +100,11 @@
             {
               "title": "Blog",
               "url": "/blog",
+              "target": "_self"
+            },
+            {
+              "title": "Updates",
+              "url": "/updates",
               "target": "_self"
             }
           ]

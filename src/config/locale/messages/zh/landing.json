@@ -23,13 +23,25 @@
         {
           "title": "常见问题",
           "url": "/#faq"
+        },
+        {
+          "title": "定价",
+          "url": "/#pricing"
+        },
+        {
+          "title": "博客",
+          "url": "/blog"
+        },
+        {
+          "title": "更新日志",
+          "url": "/updates"
         }
       ]
     },
     "buttons": [
       {
         "title": "立即开始",
-        "url": "/chat",
+        "url": "/youtube-summary",
         "target": "_self",
         "variant": "default"
       }
@@ -67,7 +79,12 @@
             },
             {
               "title": "工作区",
-              "url": "/chat",
+              "url": "/youtube-summary",
+              "target": "_self"
+            },
+            {
+              "title": "定价",
+              "url": "/#pricing",
               "target": "_self"
             }
           ]
@@ -83,6 +100,11 @@
             {
               "title": "博客",
               "url": "/blog",
+              "target": "_self"
+            },
+            {
+              "title": "更新日志",
+              "url": "/updates",
               "target": "_self"
             }
           ]

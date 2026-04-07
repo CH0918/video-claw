@@ -26,8 +26,8 @@ export function VideoClawHomeLinkForm({
     const nextValue = value.trim();
 
     const target = nextValue
-      ? `/video/chat?url=${encodeURIComponent(nextValue)}`
-      : '/video/chat';
+      ? `/youtube-summary?url=${encodeURIComponent(nextValue)}`
+      : '/youtube-summary';
 
     if (!nextValue) {
       inputRef.current?.blur();

@@ -49,7 +49,7 @@ function extractSessionUser(data: any): UserType | null {
 }
 
 export function VideoChatHeaderMenu() {
-  const t = useTranslations('pages.video.chat');
+  const t = useTranslations('pages.youtube-summary');
   const signT = useTranslations('common.sign');
   const currentLocale = useLocale();
   const router = useRouter();

@@ -33,7 +33,7 @@ function getLocalizedHomeUrl(locale: string) {
 }
 
 function getLocalizedWorkspaceUrl(locale: string) {
-  return `${getLocalizedHomeUrl(locale)}/video/chat`;
+  return `${getLocalizedHomeUrl(locale)}/youtube-summary`;
 }
 
 function HomeStructuredData({
@@ -55,6 +55,11 @@ function HomeStructuredData({
       url: homeUrl,
       inLanguage: locale,
       description: page.hero.description,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${homeUrl}/youtube-summary?url={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
     },
     {
       '@context': 'https://schema.org',

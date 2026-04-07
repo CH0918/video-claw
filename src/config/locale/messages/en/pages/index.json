@@ -17,7 +17,7 @@
       ],
       "primary_button": {
         "title": "Summarize a YouTube Video",
-        "url": "/video/chat"
+        "url": "/youtube-summary"
       },
       "secondary_button": {
         "title": "Search Inside a Video",
@@ -157,7 +157,76 @@
         },
         {
           "question": "How many credits does VideoClaw cost?",
-          "answer": "Video analysis costs 2 credits per video (previously analyzed videos are free). In AI chat, Gemini models are free, while GPT 5.4 and Claude cost 2 credits per message. Subtitle translation is always free."
+          "answer": "Video analysis costs 2 credits per video (previously analyzed videos are free). In AI chat, Gemini 2.5 Flash Lite costs 0.25 credits per message, Gemini 2.5 Flash costs 0.5 credits per message, and GPT and Claude cost 2 credits per message. Subtitle translation is always free."
+        }
+      ]
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Simple plans, full access",
+      "description": "Every plan includes AI summary, transcript search, timestamp jump, and follow-up chat. Subscribe for the credits that match your learning pace.",
+      "coming_soon": "Payment is launching soon — stay tuned!",
+      "items": [
+        {
+          "title": "Free",
+          "price": "$0",
+          "period": "",
+          "credits": "5",
+          "credits_label": "credits included",
+          "description": "Try the full workspace with no commitment.",
+          "features": [
+            "YouTube AI summary",
+            "Full transcript search",
+            "Timestamp jump",
+            "AI follow-up chat",
+            "Subtitle translation"
+          ],
+          "button": {
+            "title": "Get Started",
+            "url": "/youtube-summary"
+          },
+          "featured": false
+        },
+        {
+          "title": "Starter",
+          "price": "$15",
+          "period": "/mo",
+          "credits": "100",
+          "credits_label": "credits / month",
+          "description": "For regular learners who study from YouTube weekly.",
+          "features": [
+            "Everything in Free",
+            "~50 video analyses / month",
+            "Gemini, GPT & Claude models",
+            "Priority processing"
+          ],
+          "button": {
+            "title": "Subscribe",
+            "url": ""
+          },
+          "featured": false,
+          "coming_soon": true
+        },
+        {
+          "title": "Pro",
+          "price": "$29",
+          "period": "/mo",
+          "credits": "220",
+          "credits_label": "credits / month",
+          "badge": "Best Value",
+          "description": "For power users and teams who rely on video research daily.",
+          "features": [
+            "Everything in Starter",
+            "~110 video analyses / month",
+            "Save 27% per credit",
+            "Priority processing"
+          ],
+          "button": {
+            "title": "Subscribe",
+            "url": ""
+          },
+          "featured": true,
+          "coming_soon": true
         }
       ]
     },
@@ -166,7 +235,7 @@
       "description": "Generate a youtube summary, search the transcript, jump to exact moments, and ask deeper questions with VideoClaw.",
       "primary_button": {
         "title": "Summarize a YouTube Video",
-        "url": "/video/chat"
+        "url": "/youtube-summary"
       },
       "secondary_button": {
         "title": "Search Inside a Video",

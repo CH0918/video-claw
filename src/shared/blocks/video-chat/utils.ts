@@ -317,7 +317,7 @@ export { exportTranscript };
 export type { TranscriptExportFormat };
 
 export function buildVideoChatCopy(
-  t: ReturnType<typeof useTranslations<'pages.video.chat'>>
+  t: ReturnType<typeof useTranslations<'pages.youtube-summary'>>
 ): VideoChatCopy {
   return {
     analyze: t('analyze'),

@@ -6,5 +6,5 @@ export default async function VideoChatRoute({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  redirect({ href: '/video/chat', locale });
+  redirect({ href: '/youtube-summary', locale });
 }

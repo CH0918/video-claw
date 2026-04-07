@@ -1,16 +1,6 @@
-import { setRequestLocale } from 'next-intl/server';
+import { redirect } from '@/core/i18n/navigation';
 
-import { VideoChatPage } from '@/shared/blocks/video-chat/page';
-import { getMetadata } from '@/shared/lib/seo';
-
-export const generateMetadata = getMetadata({
-  title: 'Video Chat Workspace',
-  description:
-    'Analyze a video, review subtitles, and chat with an AI copilot in one workspace.',
-  canonicalUrl: '/video/chat',
-});
-
-export default async function VideoChatRoute({
+export default async function VideoChatRedirect({
   params,
   searchParams,
 }: {
@@ -18,8 +8,9 @@ export default async function VideoChatRoute({
   searchParams?: Promise<{ url?: string }>;
 }) {
   const { locale } = await params;
-  const resolvedSearchParams = await searchParams;
-  setRequestLocale(locale);
-
-  return <VideoChatPage locale={locale} initialUrl={resolvedSearchParams?.url} />;
+  const resolved = await searchParams;
+  const target = resolved?.url
+    ? `/youtube-summary?url=${encodeURIComponent(resolved.url)}`
+    : '/youtube-summary';
+  redirect({ href: target, locale });
 }
