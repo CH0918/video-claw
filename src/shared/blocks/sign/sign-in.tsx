@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -36,6 +36,7 @@ export function SignIn({
   const t = useTranslations('common.sign');
   const [email, setEmail] = useState(defaultEmail || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -55,7 +56,6 @@ export function SignIn({
     }
   }
 
-  const base = locale !== defaultLocale ? `/${locale}` : '';
   const stripLocalePrefix = (path: string) => {
     if (!path?.startsWith('/')) return '/';
     if (locale === defaultLocale) return path;
@@ -103,17 +103,10 @@ export function SignIn({
                 email
               )}&callbackUrl=${encodeURIComponent(normalizedCallbackUrl)}`;
 
-              // IMPORTANT:
-              // better-auth does not URL-encode callbackURL when generating the verification URL.
-              // So callbackURL must not contain its own '&' query params (or they'll get split).
-              // We send users to home/callbackUrl after verification, and keep the verify page only
-              // as the waiting UI.
-              void authClient.sendVerificationEmail({
+              void authClient.emailOtp.sendVerificationOtp({
                 email,
-                callbackURL: `${base}${normalizedCallbackUrl || '/'}`,
+                type: 'email-verification',
               });
-
-              // i18n router will prefix locale automatically; do NOT include locale here.
               router.push(verifyPath);
               return;
             }
@@ -174,14 +167,25 @@ export function SignIn({
                   </Link> */}
                 </div>
 
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={t('password_placeholder')}
-                  autoComplete="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t('password_placeholder')}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               {/* <div className="flex items-center gap-2">

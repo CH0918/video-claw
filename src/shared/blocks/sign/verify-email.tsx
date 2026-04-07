@@ -6,7 +6,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { authClient, useSession } from '@/core/auth/client';
-import { useRouter } from '@/core/i18n/navigation';
 import { defaultLocale } from '@/config/locale';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -17,14 +16,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/components/ui/card';
+import { Input } from '@/shared/components/ui/input';
 
 const RESEND_COOLDOWN_SECONDS = 60;
+const OTP_LENGTH = 6;
+const AUTH_MODE_QUERY_KEY = 'auth_mode';
+const AUTH_EMAIL_QUERY_KEY = 'auth_email';
+const AUTH_VERIFIED_QUERY_KEY = 'auth_verified';
 
 function safeDecodeCallbackUrl(raw?: string) {
   if (!raw) return '/';
   try {
     const decoded = decodeURIComponent(raw);
-    // only allow internal redirects
     if (decoded.startsWith('/')) return decoded;
     return '/';
   } catch {
@@ -55,6 +58,19 @@ function getCooldownRemainingSeconds(email?: string) {
   return Math.max(0, RESEND_COOLDOWN_SECONDS - elapsedSeconds);
 }
 
+function buildSignInReturnPath(path: string, email?: string) {
+  const safePath = path?.startsWith('/') ? path : '/';
+  const url = new URL(safePath, 'http://local');
+
+  url.searchParams.set(AUTH_MODE_QUERY_KEY, 'sign-in');
+  if (email) {
+    url.searchParams.set(AUTH_EMAIL_QUERY_KEY, email);
+  }
+  url.searchParams.set(AUTH_VERIFIED_QUERY_KEY, '1');
+
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 function markSentNow(email?: string) {
   if (typeof window === 'undefined') return;
   if (!email) return;
@@ -75,140 +91,53 @@ export function VerifyEmailPage({
   sent?: string;
 }) {
   const t = useTranslations('common.sign');
-  const router = useRouter();
   const locale = useLocale();
   const { data: session, isPending } = useSession();
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const lastSessionCheckAtRef = useRef(0);
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const nextUrl = useMemo(() => {
     const decoded = safeDecodeCallbackUrl(callbackUrl);
-    // i18n router will prefix locale automatically; store locale-less paths
     return stripLocalePrefix(decoded, locale);
   }, [callbackUrl, locale]);
   const base = locale !== defaultLocale ? `/${locale}` : '';
-  const signInPath = useMemo(() => {
-    const query = new URLSearchParams();
-    query.set('callbackUrl', nextUrl || '/');
-    // Back to sign-in should allow users to sign in with a different account.
-    // Do not include email/verify flags that would show "verification sent" hints.
-    return `/sign-in?${query.toString()}`;
-  }, [email, nextUrl]);
 
-  const hardNavigateToSignIn = (prefillEmail?: string) => {
+  const hardNavigateToNextUrl = () => {
     if (typeof window === 'undefined') return;
-    const query = new URLSearchParams();
-    if (prefillEmail) query.set('email', prefillEmail);
-    query.set('callbackUrl', nextUrl || '/');
-    window.location.assign(`${base}/sign-in?${query.toString()}`);
+    window.location.assign(`${base}${nextUrl}`);
+  };
+
+  const navigateToSignInModal = () => {
+    if (typeof window === 'undefined') return;
+    const target = buildSignInReturnPath(nextUrl || '/', email);
+    window.location.assign(`${base}${target}`);
   };
 
   // Initialize & tick cooldown
   useEffect(() => {
     setCooldownSeconds(getCooldownRemainingSeconds(email));
-
     const timer = window.setInterval(() => {
       setCooldownSeconds(getCooldownRemainingSeconds(email));
     }, 1000);
-
     return () => window.clearInterval(timer);
   }, [email]);
 
-  const hardNavigateToNextUrl = () => {
-    if (typeof window === 'undefined') return;
-    // Force a full navigation so server components read the latest cookies/session.
-    window.location.assign(`${base}${nextUrl}`);
-  };
-
-  const checkSessionAndRedirect = async () => {
-    // Avoid spamming get-session (especially since we also poll cooldown timer).
-    const now = Date.now();
-    if (now - lastSessionCheckAtRef.current < 800) return;
-    lastSessionCheckAtRef.current = now;
-
-    try {
-      const { data } = await authClient.getSession();
-      if (data?.user) {
-        hardNavigateToNextUrl();
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  // If verification email link signs the user in successfully, session will exist.
+  // If session exists, redirect
   useEffect(() => {
-    // In verify-email page, if a session exists we consider the user already signed in.
-    // Always redirect to callbackUrl (or '/') regardless of which email this page is "waiting" for.
     if (!isPending && session?.user) {
       hardNavigateToNextUrl();
     }
-  }, [isPending, session?.user, nextUrl, router]);
-
-  // On initial mount, actively fetch session once (and briefly poll) to catch
-  // the common flow: user clicks verification link -> cookie gets set -> redirected here.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    let cancelled = false;
-    let attempts = 0;
-    const maxAttempts = 12; // ~12s
-
-    const tick = async () => {
-      if (cancelled) return;
-      attempts += 1;
-      await checkSessionAndRedirect();
-      if (attempts >= maxAttempts) return;
-      // keep polling only while we're not signed in yet
-      const { data } = await authClient.getSession();
-      if (!data?.user) {
-        window.setTimeout(tick, 1000);
-      }
-    };
-
-    void tick();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [nextUrl]);
-
-  // Cross-tab session sync: when user verifies/logs in in another tab,
-  // this tab should detect the new session without a full refresh.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onFocus = () => {
-      void checkSessionAndRedirect();
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        void checkSessionAndRedirect();
-      }
-    };
-
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [nextUrl]);
+  }, [isPending, session?.user, nextUrl]);
 
   useEffect(() => {
     if (sent === '1') {
-      // Only mark "sent" if we don't already have a cooldown running.
-      // This avoids "resetting" the timer when users switch language (query preserved)
-      // or refresh the page while `sent=1` is still present.
       if (getCooldownRemainingSeconds(email) === 0) {
         markSentNow(email);
       }
       setCooldownSeconds(getCooldownRemainingSeconds(email));
-
-      // Remove `sent=1` from the URL to avoid re-triggering on locale switch/refresh.
       if (typeof window !== 'undefined') {
         try {
           const url = new URL(window.location.href);
@@ -219,7 +148,75 @@ export function VerifyEmailPage({
         }
       }
     }
-  }, [sent, t, email]);
+  }, [sent, email]);
+
+  // Focus first input on mount
+  useEffect(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  const otpValue = otp.join('');
+
+  const handleOtpChange = (index: number, value: string) => {
+    // Only allow digits
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newOtp = [...otp];
+    newOtp[index] = digit;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (digit && index < OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    if (!pasted) return;
+    const newOtp = [...otp];
+    for (let i = 0; i < pasted.length; i++) {
+      newOtp[i] = pasted[i];
+    }
+    setOtp(newOtp);
+    // Focus the next empty input or the last one
+    const nextEmpty = newOtp.findIndex((v) => !v);
+    inputRefs.current[nextEmpty >= 0 ? nextEmpty : OTP_LENGTH - 1]?.focus();
+  };
+
+  const handleVerify = async () => {
+    if (!email || otpValue.length !== OTP_LENGTH) return;
+    if (verifying) return;
+
+    setVerifying(true);
+    try {
+      const result = await authClient.emailOtp.verifyEmail({
+        email,
+        otp: otpValue,
+      });
+
+      if (result?.error) {
+        toast.error(result.error.message || t('verification_code_invalid'));
+        setOtp(Array(OTP_LENGTH).fill(''));
+        inputRefs.current[0]?.focus();
+        setVerifying(false);
+        return;
+      }
+
+      navigateToSignInModal();
+    } catch (e: any) {
+      toast.error(e?.message || t('verification_code_invalid'));
+      setOtp(Array(OTP_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
+      setVerifying(false);
+    }
+  };
 
   const handleResend = async () => {
     if (!email) {
@@ -229,67 +226,26 @@ export function VerifyEmailPage({
     if (loading) return;
 
     const remaining = getCooldownRemainingSeconds(email);
-    if (remaining > 0) {
-      return;
-    }
+    if (remaining > 0) return;
 
     try {
       setLoading(true);
-      const result = await authClient.sendVerificationEmail({
+      const result = await authClient.emailOtp.sendVerificationOtp({
         email,
-        // IMPORTANT: callbackURL must not contain its own '&' query params.
-        // After verification, send user to callbackUrl (or home). This page is just the waiting UI.
-        callbackURL: `${base}${nextUrl || '/'}`,
+        type: 'email-verification',
       });
       if (result?.error) {
-        toast.error(result.error.message || 'send verification email failed');
+        toast.error(result.error.message || 'send verification code failed');
         return;
       }
       markSentNow(email);
       setCooldownSeconds(getCooldownRemainingSeconds(email));
+      toast.success(t('verification_code_sent'));
     } catch (e: any) {
-      toast.error(e?.message || 'send verification email failed');
+      toast.error(e?.message || 'send verification code failed');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleContinue = () => {
-    if (session?.user) {
-      hardNavigateToNextUrl();
-      return;
-    }
-    // Force a fresh session check (e.g. user verified in another tab).
-    void (async () => {
-      await checkSessionAndRedirect();
-      const { data } = await authClient.getSession();
-      if (!data?.user) {
-        // If user verified in a different browser (no shared cookies),
-        // we can detect verified status and redirect them to sign-in.
-        const targetEmail = String(email || '')
-          .trim()
-          .toLowerCase();
-        if (targetEmail) {
-          try {
-            const res = await fetch('/api/user/is-email-verified', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ email: targetEmail }),
-            });
-            const json = await res.json().catch(() => null);
-            const verified = Boolean(json?.data?.emailVerified);
-            if (verified) {
-              hardNavigateToSignIn(targetEmail);
-              return;
-            }
-          } catch {
-            // ignore
-          }
-        }
-
-        toast.error(t('verify_email_not_verified_yet'));
-      }
-    })();
   };
 
   return (
@@ -306,7 +262,38 @@ export function VerifyEmailPage({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3">
+        <div className="grid gap-4">
+          {/* OTP Input */}
+          <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+            {Array.from({ length: OTP_LENGTH }).map((_, i) => (
+              <Input
+                key={i}
+                ref={(el) => { inputRefs.current[i] = el; }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={otp[i]}
+                onChange={(e) => handleOtpChange(i, e.target.value)}
+                onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                className="h-12 w-12 text-center text-lg font-semibold"
+                autoComplete="one-time-code"
+              />
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            className="w-full"
+            disabled={verifying || otpValue.length !== OTP_LENGTH}
+            onClick={handleVerify}
+          >
+            {verifying ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              t('verification_code_submit')
+            )}
+          </Button>
+
           <Button
             type="button"
             variant="outline"
@@ -325,19 +312,6 @@ export function VerifyEmailPage({
 
           <Button
             type="button"
-            className="w-full"
-            disabled={isPending}
-            onClick={handleContinue}
-          >
-            {isPending ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              t('verify_email_continue')
-            )}
-          </Button>
-
-          <Button
-            type="button"
             variant="ghost"
             className="w-full"
             onClick={() => router.push(signInPath)}
@@ -348,7 +322,7 @@ export function VerifyEmailPage({
       </CardContent>
       <CardFooter>
         <p className="w-full text-center text-xs text-neutral-500">
-          {t('verify_email_tip')}
+          {t('verify_email_otp_tip')}
         </p>
       </CardFooter>
     </Card>

@@ -42,6 +42,7 @@ export enum CreditReferenceType {
   VIDEO_CHAT = 'video-chat',
   VIDEO_SUBTITLE_TRANSLATION = 'video-subtitle-translation',
   AI_TASK = 'ai-task',
+  NEW_USER_INITIAL_CREDITS = 'new-user-initial-credits',
 }
 
 export function isInsufficientCreditsError(error: unknown) {
@@ -749,8 +750,38 @@ export async function findActiveConsumeCreditByReference({
   return result || null;
 }
 
+export async function findActiveGrantCreditByReference({
+  userId,
+  referenceType,
+  referenceId,
+}: {
+  userId: string;
+  referenceType: string;
+  referenceId: string;
+}) {
+  const [result] = await db()
+    .select()
+    .from(credit)
+    .where(
+      and(
+        eq(credit.userId, userId),
+        eq(credit.transactionType, CreditTransactionType.GRANT),
+        eq(credit.status, CreditStatus.ACTIVE),
+        eq(credit.referenceType, referenceType),
+        eq(credit.referenceId, referenceId)
+      )
+    )
+    .limit(1);
+
+  return result || null;
+}
+
 // grant credits for new user
 export async function grantCreditsForNewUser(user: User) {
+  if (!user?.id || !user?.email) {
+    return;
+  }
+
   // get configs from db
   const configs = await getAllConfigs();
 
@@ -770,11 +801,22 @@ export async function grantCreditsForNewUser(user: User) {
 
   const description = configs.initial_credits_description || 'initial credits';
 
+  const existingInitialCredit = await findActiveGrantCreditByReference({
+    userId: user.id,
+    referenceType: CreditReferenceType.NEW_USER_INITIAL_CREDITS,
+    referenceId: user.id,
+  });
+  if (existingInitialCredit) {
+    return existingInitialCredit;
+  }
+
   const newCredit = await grantCreditsForUser({
     user: user,
     credits: credits,
     validDays: creditsValidDays,
     description: description,
+    referenceType: CreditReferenceType.NEW_USER_INITIAL_CREDITS,
+    referenceId: user.id,
   });
 
   return newCredit;
@@ -786,11 +828,15 @@ export async function grantCreditsForUser({
   credits,
   validDays,
   description,
+  referenceType,
+  referenceId,
 }: {
   user: User;
   credits: number;
   validDays?: number;
   description?: string;
+  referenceType?: string;
+  referenceId?: string;
 }) {
   if (credits <= 0) {
     return;
@@ -818,6 +864,8 @@ export async function grantCreditsForUser({
     description: creditDescription,
     expiresAt: expiresAt,
     status: CreditStatus.ACTIVE,
+    referenceType,
+    referenceId,
   };
 
   await createCredit(newCredit);

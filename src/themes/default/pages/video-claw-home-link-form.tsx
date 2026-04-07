@@ -50,7 +50,7 @@ export function VideoClawHomeLinkForm({
           onChange={(event) => setValue(event.target.value)}
           placeholder={placeholder}
           disabled={loading}
-          className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-[13px] placeholder:text-muted-foreground/65 sm:h-16 sm:text-lg sm:placeholder:text-base disabled:opacity-60"
+          className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-[13px] placeholder:text-muted-foreground/65 sm:h-16 sm:text-lg sm:placeholder:text-base disabled:opacity-60 autofill:bg-transparent autofill:shadow-[inset_0_0_0px_1000px_transparent] [&:-webkit-autofill]:bg-transparent [&:-webkit-autofill]:[-webkit-box-shadow:inset_0_0_0px_1000px_transparent]"
         />
       </div>
 

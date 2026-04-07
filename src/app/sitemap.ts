@@ -1,10 +1,10 @@
 import { MetadataRoute } from 'next';
 
 import { envConfigs } from '@/config';
-import { locales, defaultLocale } from '@/config/locale';
+import { defaultLocale, locales } from '@/config/locale';
 import { getPosts, PostStatus, PostType } from '@/shared/models/post';
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 function localizedUrl(path: string, locale: string): string {
@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     locales.map((locale) => ({
       url: localizedUrl(path, locale),
       lastModified: now,
-      changeFrequency: path === '/' ? 'daily' as const : 'weekly' as const,
+      changeFrequency: path === '/' ? ('daily' as const) : ('weekly' as const),
       priority: path === '/' ? 1.0 : 0.7,
     }))
   );

@@ -17,6 +17,29 @@ export type Configs = Record<string, string>;
 
 export const CACHE_TAG_CONFIGS = 'configs';
 
+async function loadConfigsFromDbDirectly(): Promise<Configs> {
+  const configs: Record<string, string> = {};
+
+  // D1 is only available inside Cloudflare Workers runtime (not during build)
+  if (envConfigs.database_provider === 'd1' && !isCloudflareWorker) {
+    return configs;
+  }
+  if (!envConfigs.database_url && envConfigs.database_provider !== 'd1') {
+    return configs;
+  }
+
+  const result = await db().select().from(config);
+  if (!result) {
+    return configs;
+  }
+
+  for (const item of result) {
+    configs[item.name] = item.value ?? '';
+  }
+
+  return configs;
+}
+
 export async function saveConfigs(configs: Record<string, string>) {
   const configEntries = Object.entries(configs);
   const d = db();
@@ -69,28 +92,7 @@ export async function addConfig(newConfig: NewConfig) {
 }
 
 export const getConfigs = unstable_cache(
-  async (): Promise<Configs> => {
-    const configs: Record<string, string> = {};
-
-    // D1 is only available inside Cloudflare Workers runtime (not during build)
-    if (envConfigs.database_provider === 'd1' && !isCloudflareWorker) {
-      return configs;
-    }
-    if (!envConfigs.database_url && envConfigs.database_provider !== 'd1') {
-      return configs;
-    }
-
-    const result = await db().select().from(config);
-    if (!result) {
-      return configs;
-    }
-
-    for (const config of result) {
-      configs[config.name] = config.value ?? '';
-    }
-
-    return configs;
-  },
+  async (): Promise<Configs> => loadConfigsFromDbDirectly(),
   ['configs'],
   {
     revalidate: 3600,
@@ -108,7 +110,7 @@ export async function getAllConfigs(): Promise<Configs> {
       dbConfigs = await getConfigs();
     } catch (e) {
       console.log(`get configs from db failed:`, e);
-      dbConfigs = {};
+      dbConfigs = await loadConfigsFromDbDirectly();
     }
   }
 

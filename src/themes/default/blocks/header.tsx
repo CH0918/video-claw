@@ -1,21 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Coins, Menu, X } from 'lucide-react';
 
 import { Link } from '@/core/i18n/navigation';
 import {
   BrandLogo,
   LocaleSelector,
   SignUser,
-  ThemeToggler,
 } from '@/shared/blocks/common';
+import { AnimatedThemeToggler } from '@/shared/components/magicui/animated-theme-toggler';
 import { SignModal } from '@/shared/blocks/sign/sign-modal';
+import { useAppContext } from '@/shared/contexts/app';
 import { UserNav } from '@/shared/types/blocks/common';
 import { Header as HeaderType } from '@/shared/types/blocks/landing';
 
 export function Header({ header }: { header: HeaderType }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAppContext();
+  const remainingCredits = (user as any)?.credits?.remainingCredits ?? 0;
   const userNav: UserNav = {
     items: [],
     show_sign_out: true,
@@ -43,9 +46,20 @@ export function Header({ header }: { header: HeaderType }) {
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
-          {header.show_theme !== false ? <ThemeToggler type="toggle" /> : null}
           {header.show_locale !== false ? (
             <LocaleSelector type="button" />
+          ) : null}
+          {header.show_theme !== false ? (
+            <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground inline-flex size-9 items-center justify-center rounded-full transition-colors" />
+          ) : null}
+          {user ? (
+            <Link
+              href="/settings/credits"
+              className="border-border bg-card hover:bg-muted text-foreground inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold shadow-xs transition-colors"
+            >
+              <Coins className="text-primary size-3.5" />
+              {remainingCredits}
+            </Link>
           ) : null}
           <SignUser
             anonymousVariant="avatar"
@@ -81,7 +95,9 @@ export function Header({ header }: { header: HeaderType }) {
           </nav>
 
           <div className="mt-4 flex items-center gap-3">
-            {header.show_theme !== false ? <ThemeToggler type="toggle" /> : null}
+            {header.show_theme !== false ? (
+              <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground inline-flex size-9 items-center justify-center rounded-full transition-colors" />
+            ) : null}
             {header.show_locale !== false ? (
               <LocaleSelector type="button" />
             ) : null}

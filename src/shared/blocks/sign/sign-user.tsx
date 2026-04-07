@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu';
@@ -178,37 +179,57 @@ export function SignUser({
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {userNav?.show_name && (
-              <>
-                <DropdownMenuItem asChild>
-                  <Link
-                    className="w-full cursor-pointer"
-                    href="/settings/profile"
+          <DropdownMenuContent align="end" className="w-72 rounded-2xl p-2">
+            <DropdownMenuLabel className="px-2 py-2">
+              <div className="flex items-center gap-3">
+                <Avatar className="size-10">
+                  <AvatarImage
+                    src={displayUser.image || ''}
+                    alt={displayUser.name || ''}
+                  />
+                  <AvatarFallback
+                    className="bg-primary text-primary-foreground font-semibold"
                   >
-                    <User />
-                    {displayUser.name}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
+                    {displayUser.name?.charAt(0) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">
+                    {displayUser.name || ''}
+                  </div>
+                  <div className="text-muted-foreground truncate text-xs">
+                    {displayUser.email || ''}
+                  </div>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+
+            <DropdownMenuSeparator />
 
             {userNav?.show_credits && (
-              <>
-                <DropdownMenuItem asChild>
-                  <Link
-                    className="w-full cursor-pointer"
-                    href="/settings/credits"
-                  >
-                    <Coins />
-                    {t('credits_title', {
-                      credits: displayUser.credits?.remainingCredits || 0,
-                    })}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
+              <DropdownMenuItem asChild>
+                <Link
+                  className="w-full cursor-pointer"
+                  href="/settings/credits"
+                >
+                  <Coins />
+                  {t('credits_title', {
+                    credits: displayUser.credits?.remainingCredits || 0,
+                  })}
+                </Link>
+              </DropdownMenuItem>
+            )}
+
+            {userNav?.show_name && (
+              <DropdownMenuItem asChild>
+                <Link
+                  className="w-full cursor-pointer"
+                  href="/settings/profile"
+                >
+                  <User />
+                  {displayUser.name}
+                </Link>
+              </DropdownMenuItem>
             )}
 
             {userNav?.items?.map((item: NavItem, idx: number) => (
@@ -228,38 +249,40 @@ export function SignUser({
                     {item.title}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
               </Fragment>
             ))}
 
             {displayUser.isAdmin && (
               <>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link className="w-full cursor-pointer" href="/admin">
                     <LayoutDashboard />
                     {t('admin_title')}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
               </>
             )}
 
             {userNav?.show_sign_out && (
-              <DropdownMenuItem
-                className="w-full cursor-pointer"
-                onClick={() =>
-                  signOut({
-                    fetchOptions: {
-                      onSuccess: () => {
-                        router.push('/');
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="w-full cursor-pointer"
+                  onClick={() =>
+                    signOut({
+                      fetchOptions: {
+                        onSuccess: () => {
+                          router.push('/');
+                        },
                       },
-                    },
-                  })
-                }
-              >
-                <LogOut />
-                <span>{t('sign_out_title')}</span>
-              </DropdownMenuItem>
+                    })
+                  }
+                >
+                  <LogOut />
+                  <span>{t('sign_out_title')}</span>
+                </DropdownMenuItem>
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

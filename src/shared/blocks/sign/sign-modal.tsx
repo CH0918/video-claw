@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { usePathname } from '@/core/i18n/navigation';
 import { Button } from '@/shared/components/ui/button';
 import {
   Dialog,
@@ -26,17 +28,66 @@ import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { SignInForm } from './sign-in-form';
 import { SignUpForm } from './sign-up-form';
 
-export function SignModal({ callbackUrl = '/' }: { callbackUrl?: string }) {
+const AUTH_MODE_QUERY_KEY = 'auth_mode';
+const AUTH_EMAIL_QUERY_KEY = 'auth_email';
+const AUTH_VERIFIED_QUERY_KEY = 'auth_verified';
+
+function removeAuthModalQueryParams() {
+  if (typeof window === 'undefined') return;
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete(AUTH_MODE_QUERY_KEY);
+  url.searchParams.delete(AUTH_EMAIL_QUERY_KEY);
+  url.searchParams.delete(AUTH_VERIFIED_QUERY_KEY);
+
+  window.history.replaceState({}, '', url.toString());
+}
+
+export function SignModal({ callbackUrl }: { callbackUrl?: string }) {
   const t = useTranslations('common.sign');
   const { isShowSignModal, setIsShowSignModal } = useAppContext();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  const [defaultEmail, setDefaultEmail] = useState('');
 
   const isDesktop = useMediaQuery('(min-width: 768px)');
+
+  const modalMode = searchParams?.get(AUTH_MODE_QUERY_KEY) || '';
+  const modalEmail = searchParams?.get(AUTH_EMAIL_QUERY_KEY) || '';
+  const hasAuthModalQuery = !!modalMode;
+
+  const currentCallbackUrl = useMemo(() => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    params.delete(AUTH_MODE_QUERY_KEY);
+    params.delete(AUTH_EMAIL_QUERY_KEY);
+    params.delete(AUTH_VERIFIED_QUERY_KEY);
+
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }, [pathname, searchParams]);
+
+  const effectiveCallbackUrl =
+    hasAuthModalQuery
+      ? currentCallbackUrl || '/'
+      : callbackUrl || currentCallbackUrl || '/';
+
+  useEffect(() => {
+    if (modalMode !== 'sign-in') {
+      return;
+    }
+
+    setMode('sign-in');
+    setDefaultEmail(modalEmail);
+    setIsShowSignModal(true);
+    removeAuthModalQueryParams();
+  }, [modalEmail, modalMode, setIsShowSignModal]);
 
   const handleOpenChange = (open: boolean) => {
     setIsShowSignModal(open);
     if (!open) {
       setMode('sign-in');
+      setDefaultEmail('');
     }
   };
 
@@ -48,12 +99,13 @@ export function SignModal({ callbackUrl = '/' }: { callbackUrl?: string }) {
   const formContent =
     mode === 'sign-in' ? (
       <SignInForm
-        callbackUrl={callbackUrl}
+        callbackUrl={effectiveCallbackUrl}
+        defaultEmail={defaultEmail}
         onSwitchToSignUp={() => setMode('sign-up')}
       />
     ) : (
       <SignUpForm
-        callbackUrl={callbackUrl}
+        callbackUrl={effectiveCallbackUrl}
         onSwitchToSignIn={() => setMode('sign-in')}
       />
     );
@@ -81,13 +133,14 @@ export function SignModal({ callbackUrl = '/' }: { callbackUrl?: string }) {
         </DrawerHeader>
         {mode === 'sign-in' ? (
           <SignInForm
-            callbackUrl={callbackUrl}
+            callbackUrl={effectiveCallbackUrl}
+            defaultEmail={defaultEmail}
             className="mt-8 px-4"
             onSwitchToSignUp={() => setMode('sign-up')}
           />
         ) : (
           <SignUpForm
-            callbackUrl={callbackUrl}
+            callbackUrl={effectiveCallbackUrl}
             className="mt-8 px-4"
             onSwitchToSignIn={() => setMode('sign-in')}
           />

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -17,18 +17,21 @@ import { SocialProviders } from './social-providers';
 
 export function SignInForm({
   callbackUrl = '/',
+  defaultEmail = '',
   className,
   onSwitchToSignUp,
 }: {
   callbackUrl: string;
+  defaultEmail?: string;
   className?: string;
   onSwitchToSignUp?: () => void;
 }) {
   const t = useTranslations('common.sign');
   const router = useRouter();
   const locale = useLocale();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(defaultEmail || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { configs, setIsShowSignModal, setUser, fetchUserInfo } = useAppContext();
@@ -38,6 +41,10 @@ export function SignInForm({
   const isEmailAuthEnabled =
     configs.email_auth_enabled !== 'false' ||
     (!isGoogleAuthEnabled && !isGithubAuthEnabled); // no social providers enabled, auto enable email auth
+
+  useEffect(() => {
+    setEmail(defaultEmail || '');
+  }, [defaultEmail]);
 
   if (callbackUrl) {
     if (
@@ -49,7 +56,6 @@ export function SignInForm({
     }
   }
 
-  const base = locale !== defaultLocale ? `/${locale}` : '';
   const stripLocalePrefix = (path: string) => {
     if (!path?.startsWith('/')) return '/';
     if (locale === defaultLocale) return path;
@@ -107,13 +113,11 @@ export function SignInForm({
                 email
               )}&callbackUrl=${encodeURIComponent(normalizedCallbackUrl)}`;
 
-              // Send verification email with callback to verify page.
-              void authClient.sendVerificationEmail({
+              void authClient.emailOtp.sendVerificationOtp({
                 email,
-                callbackURL: `${base}${verifyPath}`,
+                type: 'email-verification',
               });
-
-              // i18n router will prefix locale automatically; do NOT include locale here.
+              setIsShowSignModal(false);
               router.push(verifyPath);
               return;
             }
@@ -162,15 +166,26 @@ export function SignInForm({
               </Link>
             </div> */}
 
-              <Input
-                id="password"
-                type="password"
-                placeholder={t('password_placeholder')}
-                autoComplete="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={t('password_placeholder')}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             {/* <div className="flex items-center gap-2">

@@ -1,12 +1,12 @@
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { oneTap } from 'better-auth/plugins';
+import { emailOTP, oneTap } from 'better-auth/plugins';
 import { getLocale } from 'next-intl/server';
 
 import { db } from '@/core/db';
 import { envConfigs } from '@/config';
 import * as schema from '@/config/db/schema';
 import { isCloudflareWorker } from '@/shared/lib/env';
-import { VerifyEmail } from '@/shared/blocks/email/verify-email';
+import { VerificationCode } from '@/shared/blocks/email/verification-code';
 import {
   getCookieFromCtx,
   getHeaderValue,
@@ -18,11 +18,10 @@ import { grantCreditsForNewUser } from '@/shared/models/credit';
 import { getEmailService } from '@/shared/services/email';
 import { grantRoleForNewUser } from '@/shared/services/rbac';
 
-// Best-effort dedupe to prevent sending verification emails too frequently.
-// This is especially helpful in dev/hot reload, transient network conditions,
-// and to add a server-side throttle beyond any client-side cooldown.
-const recentVerificationEmailSentAt = new Map<string, number>();
-const VERIFICATION_EMAIL_MIN_INTERVAL_MS = 60_000;
+function debugAuthLog(step: string, payload?: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'production') return;
+  console.log('[signup-debug][server]', step, payload || {});
+}
 
 // Static auth options - NO database connection
 // This ensures zero database calls during build time
@@ -74,7 +73,9 @@ const authOptions = {
 // get auth options with configs
 export async function getAuthOptions(configs: Record<string, string>) {
   const emailVerificationEnabled =
-    configs.email_verification_enabled === 'true' && !!configs.resend_api_key;
+    configs.email_verification_enabled === 'true' &&
+    !!configs.resend_api_key &&
+    !!configs.resend_sender_email;
 
   return {
     ...authOptions,
@@ -136,9 +137,18 @@ export async function getAuthOptions(configs: Record<string, string>) {
               if (!user.id) {
                 throw new Error('user id is required');
               }
+              debugAuthLog('databaseHooks.user.create.after', {
+                userId: user.id,
+                email: user.email,
+                emailVerified: user.emailVerified,
+                emailVerificationEnabled,
+              });
 
-              // grant credits for new user
-              await grantCreditsForNewUser(user);
+              // Grant initial credits immediately only when the user is already verified
+              // or when email verification is not required for sign-up.
+              if (!emailVerificationEnabled || user.emailVerified) {
+                await grantCreditsForNewUser(user);
+              }
 
               // grant role for new user
               await grantRoleForNewUser(user);
@@ -156,57 +166,17 @@ export async function getAuthOptions(configs: Record<string, string>) {
       autoSignIn: emailVerificationEnabled ? false : true,
     },
     ...(emailVerificationEnabled
-      ? {
+        ? {
           emailVerification: {
-            // We explicitly send verification emails from the UI with a callbackURL
-            // (redirecting to /verify-email). Disabling automatic sends avoids duplicates.
             sendOnSignUp: false,
             sendOnSignIn: false,
-            // After user clicks the verification link, create session automatically.
-            autoSignInAfterVerification: true,
-            // 24 hours
+            autoSignInAfterVerification: false,
             expiresIn: 60 * 60 * 24,
-            sendVerificationEmail: async (
-              { user, url }: { user: any; url: string; token: string },
-              _request: Request
-            ) => {
-              try {
-                const key = String(user?.email || '').toLowerCase();
-                const now = Date.now();
-                const last = recentVerificationEmailSentAt.get(key) || 0;
-                if (key && now - last < VERIFICATION_EMAIL_MIN_INTERVAL_MS) {
-                  return;
-                }
-                if (key) {
-                  recentVerificationEmailSentAt.set(key, now);
-                }
-
-                const emailService = await getEmailService(configs as any);
-                const logoUrl = envConfigs.app_logo?.startsWith('http')
-                  ? envConfigs.app_logo
-                  : `${envConfigs.app_url}${envConfigs.app_logo?.startsWith('/') ? '' : '/'}${envConfigs.app_logo || ''}`;
-                // Avoid blocking auth response on email sending.
-                await emailService.sendEmail({
-                  to: user.email,
-                  subject: `Verify your email - ${envConfigs.app_name}`,
-                  react: VerifyEmail({
-                    appName: envConfigs.app_name,
-                    logoUrl,
-                    url,
-                  }),
-                });
-              } catch (e) {
-                console.log('send verification email failed:', e);
-              }
-            },
           },
         }
       : {}),
     socialProviders: await getSocialProviders(configs),
-    plugins:
-      configs.google_client_id && configs.google_one_tap_enabled === 'true'
-        ? [oneTap()]
-        : [],
+    plugins: getAuthPlugins(configs, emailVerificationEnabled),
   };
 }
 
@@ -231,6 +201,100 @@ export async function getSocialProviders(configs: Record<string, string>) {
   }
 
   return providers;
+}
+
+// get auth plugins with configs
+function getAuthPlugins(configs: Record<string, string>, emailVerificationEnabled: boolean) {
+  const plugins: any[] = [];
+
+  if (configs.google_client_id && configs.google_one_tap_enabled === 'true') {
+    plugins.push(oneTap());
+  }
+
+  if (emailVerificationEnabled) {
+    plugins.push(
+      emailOTP({
+        sendVerificationOnSignUp: true,
+        otpLength: 6,
+        expiresIn: 300,
+        async sendVerificationOTP({ email, otp }) {
+          try {
+            debugAuthLog('emailOTP.sendVerificationOTP:start', {
+              email,
+            });
+            const emailService = await getEmailService(configs as any);
+            const logoUrl = 'https://res.video-claw.cloud/logo.png';
+            const senderEmail = configs.resend_sender_email || '';
+            const from = senderEmail
+              ? senderEmail.includes('<')
+                ? senderEmail
+                : `${envConfigs.app_name} <${senderEmail}>`
+              : undefined;
+
+            await emailService.sendEmail({
+              from,
+              to: email,
+              subject: `${otp} is your verification code – ${envConfigs.app_name}`,
+              react: VerificationCode({
+                appName: envConfigs.app_name,
+                logoUrl,
+                code: otp,
+              }),
+            });
+            debugAuthLog('emailOTP.sendVerificationOTP:sent', {
+              email,
+            });
+          } catch (e) {
+            console.log('send verification OTP failed:', e);
+          }
+        },
+      })
+    );
+
+    plugins.push({
+      id: 'grant-initial-credits-after-email-otp-verify',
+      hooks: {
+        after: [
+          {
+            matcher(ctx: any) {
+              return (
+                ctx.path === '/email-otp/verify-email' ||
+                ctx.path === '/verify-email'
+              );
+            },
+            async handler(ctx: any) {
+              const returned = ctx?.context?.returned as any;
+              const verifiedUser = returned?.user;
+              debugAuthLog('hooks.after.verify-email', {
+                path: ctx?.path,
+                returnedStatus: returned?.status,
+                userId: verifiedUser?.id,
+                email: verifiedUser?.email,
+                emailVerified: verifiedUser?.emailVerified,
+              });
+
+              if (!returned?.status || !verifiedUser?.id || !verifiedUser?.email) {
+                return {};
+              }
+              if (verifiedUser.emailVerified !== true) {
+                return {};
+              }
+
+              try {
+                await grantCreditsForNewUser(verifiedUser);
+              } catch (e) {
+                console.log('grant credits after email verify failed', e);
+              }
+
+              return {};
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  return plugins;
 }
 
 // convert database provider to better-auth database provider

@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import { authClient, signUp } from '@/core/auth/client';
+import { signUp } from '@/core/auth/client';
 import { Link } from '@/core/i18n/navigation';
 import { defaultLocale } from '@/config/locale';
 import { Button } from '@/shared/components/ui/button';
@@ -23,6 +23,23 @@ import { Label } from '@/shared/components/ui/label';
 
 import { SocialProviders } from './social-providers';
 
+function debugSignUpLog(step: string, payload?: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'production') return;
+  console.log('[signup-debug][page]', step, payload || {});
+}
+
+function shouldNavigateToVerifyEmail(params: {
+  emailVerificationEnabled: boolean;
+  result: any;
+}) {
+  const responseUser = params.result?.data?.user;
+  if (responseUser?.emailVerified === false) {
+    return true;
+  }
+
+  return params.emailVerificationEnabled;
+}
+
 export function SignUp({
   configs,
   callbackUrl = '/',
@@ -37,6 +54,9 @@ export function SignUp({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const isGoogleAuthEnabled = configs.google_auth_enabled === 'true';
@@ -98,57 +118,107 @@ export function SignUp({
       return;
     }
 
+    if (password !== confirmPassword) {
+      toast.error(t('password_mismatch'));
+      return;
+    }
+
     // Set loading immediately to avoid duplicate submits before request hooks fire.
     setLoading(true);
+    debugSignUpLog('submit:start', {
+      email,
+      callbackUrl,
+      locale,
+      emailVerificationEnabled,
+    });
 
     try {
-      await signUp.email(
+      let hasError = false;
+
+      const result = await signUp.email(
         {
           email,
           password,
           name,
         },
         {
-          onRequest: (ctx) => {
-            // loading is already set above; keep as no-op for safety
+          onRequest: () => {
+            debugSignUpLog('callback:onRequest', { email });
           },
-          onResponse: (ctx) => {
-            // Do NOT reset loading here; navigation may not have completed yet.
+          onResponse: (ctx: any) => {
+            debugSignUpLog('callback:onResponse', {
+              email,
+              responseStatus: ctx?.response?.status,
+            });
           },
-          onSuccess: (ctx) => {
-            // report affiliate
-            reportAffiliate({ userEmail: email });
-
-            const emailVerificationEnabled =
-              configs.email_verification_enabled === 'true';
-
-            if (emailVerificationEnabled) {
-              const normalizedCallbackUrl = stripLocalePrefix(callbackUrl);
-              const verifyPath = `/verify-email?sent=1&email=${encodeURIComponent(
-                email
-              )}&callbackUrl=${encodeURIComponent(normalizedCallbackUrl)}`;
-
-            // IMPORTANT: callbackURL must not contain its own '&' query params.
-            // We redirect to home/callbackUrl after verification; verify page is just the waiting UI.
-              void authClient.sendVerificationEmail({
-                email,
-              callbackURL: `${base}${normalizedCallbackUrl || '/'}`,
-              });
-
-              // next/navigation router expects fully qualified path (including locale when non-default)
-              router.push(`${base}${verifyPath}`);
-              return;
-            }
-
-            router.push(callbackUrl);
+          onSuccess: (ctx: any) => {
+            debugSignUpLog('callback:onSuccess', {
+              email,
+              hasData: !!ctx?.data,
+              hasUser: !!ctx?.data?.user,
+            });
           },
           onError: (e: any) => {
+            hasError = true;
+            debugSignUpLog('callback:onError', {
+              email,
+              errorMessage: e?.error?.message || e?.message,
+              errorStatus: e?.error?.status,
+            });
             toast.error(e?.error?.message || 'sign up failed');
             setLoading(false);
           },
         }
       );
+      debugSignUpLog('submit:resolved', {
+        email,
+        hasError,
+        result,
+      });
+
+      if (hasError) {
+        return;
+      }
+
+      reportAffiliate({ userEmail: email });
+
+      const shouldVerifyEmail = shouldNavigateToVerifyEmail({
+        emailVerificationEnabled,
+        result,
+      });
+      debugSignUpLog('submit:verification-decision', {
+        email,
+        clientEmailVerificationEnabled: emailVerificationEnabled,
+        responseEmailVerified: result?.data?.user?.emailVerified,
+        shouldVerifyEmail,
+      });
+
+      if (shouldVerifyEmail) {
+        const normalizedCallbackUrl = stripLocalePrefix(callbackUrl);
+        const verifyPath = `/verify-email?sent=1&email=${encodeURIComponent(
+          email
+        )}&callbackUrl=${encodeURIComponent(normalizedCallbackUrl)}`;
+
+        debugSignUpLog('navigate:verify-email', {
+          email,
+          base,
+          normalizedCallbackUrl,
+          verifyPath,
+        });
+        router.push(`${base}${verifyPath}`);
+        return;
+      }
+
+      debugSignUpLog('navigate:callback', {
+        email,
+        target: callbackUrl,
+      });
+      router.push(callbackUrl);
     } catch (e: any) {
+      debugSignUpLog('submit:catch', {
+        email,
+        errorMessage: e?.message,
+      });
       toast.error(e?.message || 'sign up failed');
       setLoading(false);
     }
@@ -209,14 +279,48 @@ export function SignUp({
 
               <div className="grid gap-2">
                 <Label htmlFor="password">{t('password_title')}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={t('password_placeholder')}
-                  autoComplete="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t('password_placeholder')}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="confirm-password">{t('password_confirm_title')}</Label>
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder={t('password_confirm_placeholder')}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
