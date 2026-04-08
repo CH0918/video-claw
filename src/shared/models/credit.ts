@@ -469,13 +469,12 @@ async function consumeCreditsOnD1({
   referenceId?: string;
   currentTime: Date;
 }) {
-  const transactionNo = buildD1ConsumeTransactionNo({
-    userId,
-    referenceType,
-    referenceId,
-  });
-
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    const transactionNo = buildD1ConsumeTransactionNo({
+      userId,
+      referenceType,
+      referenceId,
+    });
     if (referenceType && referenceId) {
       const existingConsume = await findActiveConsumeCreditByReference({
         userId,
@@ -640,7 +639,7 @@ async function consumeCreditsOnD1({
         }
       }
 
-      if (isD1OptimisticConflict(error) && attempt < 2) {
+      if ((isD1OptimisticConflict(error) || isUniqueConstraintError(error)) && attempt < 2) {
         continue;
       }
 
@@ -672,6 +671,7 @@ async function refundCreditsOnD1(creditId: string) {
     d.update(credit)
       .set({
         status: CreditStatus.DELETED,
+        transactionNo: getSnowId(),
       })
       .where(
         and(
