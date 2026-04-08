@@ -21,7 +21,6 @@ import {
   AccordionTrigger,
 } from '@/shared/components/ui/accordion';
 import { VideoClawHomeLinkForm } from '@/themes/default/pages/video-claw-home-link-form';
-import { PricingButton } from '@/themes/default/pages/video-claw-home-pricing-button';
 
 type ButtonData = {
   title: string;
@@ -54,20 +53,6 @@ type FAQItem = {
 type PrincipleCard = {
   title: string;
   description: string;
-};
-
-type PricingItem = {
-  title: string;
-  price: string;
-  period?: string;
-  credits: string;
-  credits_label: string;
-  description: string;
-  features: string[];
-  button: ButtonData;
-  featured?: boolean;
-  badge?: string;
-  coming_soon?: boolean;
 };
 
 type HomePageData = {
@@ -110,13 +95,6 @@ type HomePageData = {
     title: string;
     description: string;
     items: FAQItem[];
-  };
-  pricing: {
-    eyebrow: string;
-    title: string;
-    description: string;
-    coming_soon?: string;
-    items: PricingItem[];
   };
   cta: {
     title: string;
@@ -382,68 +360,6 @@ export default function VideoClawHome({
         </div>
       </section>
 
-      <section id="pricing" className="bg-muted px-6 py-16 lg:px-10 lg:py-20">
-        <div className="mx-auto max-w-[1440px]">
-          <div className="mx-auto mb-12 flex max-w-[760px] flex-col items-center gap-4 text-center">
-            <SectionEyebrow>{page.pricing.eyebrow}</SectionEyebrow>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              {page.pricing.title}
-            </h2>
-            <p className="text-base leading-7 text-muted-foreground sm:text-lg">
-              {page.pricing.description}
-            </p>
-          </div>
-
-          <div className="mx-auto grid max-w-[1100px] gap-6 md:grid-cols-3">
-            {page.pricing.items.map((item) => (
-              <div
-                key={item.title}
-                className={`relative flex flex-col rounded-2xl border p-7 shadow-lg ${
-                  item.featured
-                    ? 'border-primary bg-card ring-2 ring-primary'
-                    : 'border-border bg-card'
-                }`}
-              >
-                {item.badge ? (
-                  <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                    {item.badge}
-                  </span>
-                ) : null}
-
-                <div className="mb-1 text-lg font-semibold">{item.title}</div>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold tracking-tight">{item.price}</span>
-                  {item.period ? (
-                    <span className="text-base text-muted-foreground">{item.period}</span>
-                  ) : null}
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {item.credits} {item.credits_label}
-                </div>
-
-                <PricingButton
-                  title={item.button.title}
-                  url={item.button.url}
-                  featured={item.featured}
-                  comingSoon={item.coming_soon}
-                  comingSoonMessage={page.pricing.coming_soon}
-                />
-
-                <ul className="mt-6 flex flex-col gap-3 border-t border-border pt-6">
-                  {item.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section className="px-6 pb-20 pt-4 lg:px-10 lg:pb-24">
         <div className="mx-auto max-w-[960px] rounded-[28px] border border-border bg-muted p-8 text-center lg:p-12">
