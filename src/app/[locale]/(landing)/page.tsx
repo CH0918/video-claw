@@ -5,13 +5,11 @@ import { getMetadata } from '@/shared/lib/seo';
 
 export const revalidate = 3600;
 
-const HOME_SEO_DEFAULTS = {
-  title: 'YouTube AI Summary, Transcript Search & Video Chat | VideoClaw',
-  description:
-    'Get a YouTube AI summary, search the full transcript, jump to exact timestamps, and ask follow-up questions with ChatGPT-style AI. VideoClaw turns any YouTube video into a searchable learning workspace.',
-  keywords:
-    'youtube ai summary, youtube summary, youtube summary with chatgpt, youtube summary ai, youtube video summary, ai youtube video summarizer, youtube transcript search, search inside youtube videos, chat with youtube video, ask questions about youtube video, jump to exact timestamps',
-} as const;
+export const generateMetadata = getMetadata({
+  metadataKey: 'pages.index.metadata',
+  canonicalUrl: '/',
+  appName: 'VideoClaw',
+});
 
 const HOME_SITE_URL = 'https://video-claw.cloud';
 
@@ -111,36 +109,6 @@ function HomeStructuredData({
       }}
     />
   ));
-}
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  setRequestLocale(locale);
-
-  const t = await getTranslations('pages.index');
-  const title = t.has('metadata.title')
-    ? t('metadata.title')
-    : HOME_SEO_DEFAULTS.title;
-  const description = t.has('metadata.description')
-    ? t('metadata.description')
-    : HOME_SEO_DEFAULTS.description;
-  const keywords = t.has('metadata.keywords')
-    ? t('metadata.keywords')
-    : HOME_SEO_DEFAULTS.keywords;
-
-  return getMetadata({
-    title,
-    description,
-    keywords,
-    canonicalUrl: '/',
-    appName: 'VideoClaw',
-  })({
-    params: Promise.resolve({ locale }),
-  });
 }
 
 export default async function LandingPage({

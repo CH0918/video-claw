@@ -1,4 +1,8 @@
 {
+  "metadata": {
+    "title": "YouTube Summary — AI Video Summarizer & Transcript Search | VideoClaw",
+    "description": "Summarize any YouTube video with AI, search the full transcript, jump to exact timestamps, and ask follow-up questions in one workspace."
+  },
   "searchPlaceholder": "Paste a YouTube link to start analyzing...",
   "credits": "128",
   "collapseVideo": "Collapse Video",

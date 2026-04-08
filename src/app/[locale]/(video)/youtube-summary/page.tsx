@@ -4,11 +4,7 @@ import { VideoChatPage } from '@/shared/blocks/video-chat/page';
 import { getMetadata } from '@/shared/lib/seo';
 
 export const generateMetadata = getMetadata({
-  title: 'YouTube Summary — AI Video Summarizer & Transcript Search | VideoClaw',
-  description:
-    'Summarize any YouTube video with AI, search the full transcript, jump to exact timestamps, and ask follow-up questions in one workspace.',
-  keywords:
-    'youtube summary, youtube ai summary, youtube video summarizer, youtube transcript search, summarize youtube video',
+  metadataKey: 'pages.youtube-summary.metadata',
   canonicalUrl: '/youtube-summary',
 });
 

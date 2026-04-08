@@ -1,15 +1,15 @@
 {
+  "metadata": {
+    "title": "AI总结YouTube视频,快速学习视频重点 | VideoClaw",
+    "description": "输入 YouTube 链接后，快速生成 AI 总结、搜索完整字幕、跳转到精确时间点，并继续围绕视频内容提问。"
+  },
   "page": {
     "hero": {
       "badge": "YouTube 字幕搜索与 AI 追问",
       "title": "在 YouTube 视频里搜索，然后更快学会重点",
       "description": "粘贴公开视频链接，按关键词找到你真正关心的片段，跳到精确时间点，并基于视频内容继续向 AI 追问。",
       "input_placeholder": "粘贴 YouTube 链接，在工作区里开始学习...",
-      "chips": [
-        "字幕搜索",
-        "精确时间点",
-        "AI 追问"
-      ],
+      "chips": ["字幕搜索", "精确时间点", "AI 追问"],
       "primary_button": {
         "title": "立即开始",
         "url": "/youtube-summary"
@@ -30,11 +30,7 @@
       "description": "搜索字幕、打开对应片段，并在同一个界面里继续向 AI 提问。",
       "browser_url": "video-claw.cloud/youtube-summary",
       "search_label": "搜索提示词",
-      "search_terms": [
-        "product idea",
-        "pricing strategy",
-        "distribution"
-      ],
+      "search_terms": ["product idea", "pricing strategy", "distribution"],
       "search_hint": "Video Claw 的搜索始终贴着字幕和原视频内容，方便你先定位、再验证、再理解。",
       "hits_label": "命中片段",
       "hits": [

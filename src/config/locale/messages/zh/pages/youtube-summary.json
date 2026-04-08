@@ -1,4 +1,8 @@
 {
+  "metadata": {
+    "title": "YouTube 视频摘要、字幕搜索与 AI 追问 | VideoClaw",
+    "description": "用 AI 总结任意 YouTube 视频，搜索完整字幕，跳转到精确时间点，并在同一个工作区里继续追问。"
+  },
   "searchPlaceholder": "粘贴 YouTube 链接，开始分析...",
   "credits": "128",
   "collapseVideo": "收起视频",
