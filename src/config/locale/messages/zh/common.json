@@ -47,7 +47,8 @@
   "payment": {
     "choose_payment_method": "选择支付方式",
     "choose_payment_method_description": "",
-    "cancel_title": "取消"
+    "cancel_title": "取消",
+    "subscription_coming_soon": "暂时没有开放订阅，敬请期待"
   },
   "locale_detector": {
     "title": "检测到浏览器语言是: {locale}，是否切换？",

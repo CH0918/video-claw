@@ -33,8 +33,12 @@ export function PanelCard({
   children?: ReactNode;
   className?: string;
 }) {
+  const hasFooterButtons = Boolean(buttons && buttons.length > 0);
+
   return (
-    <CardComponent className={cn('overflow-hidden pb-0', className)}>
+    <CardComponent
+      className={cn('overflow-hidden', hasFooterButtons && 'pb-0', className)}
+    >
       {(title || description) && (
         <CardHeader>
           <CardTitle>

@@ -54,7 +54,8 @@
   "payment": {
     "choose_payment_method": "Choose Payment Method",
     "choose_payment_method_description": "",
-    "cancel_title": "Cancel"
+    "cancel_title": "Cancel",
+    "subscription_coming_soon": "Subscriptions are not open yet. Coming soon."
   },
   "locale_detector": {
     "title": "We detected your browser language is {locale}. Switch to it?",
